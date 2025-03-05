@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --theme-transition-duration: 200ms;
+}
+
+/* Only transition specific properties that change with theme */
+.theme-transition {
+  transition: color var(--theme-transition-duration) ease-in-out,
+              background-color var(--theme-transition-duration) ease-in-out,
+              border-color var(--theme-transition-duration) ease-in-out,
+              box-shadow var(--theme-transition-duration) ease-in-out;
+}
+
+/* Apply the transition class to specific elements instead of globally */
+.theme-transition-bg {
+  transition: background-color var(--theme-transition-duration) ease-in-out;
+}
+
+.theme-transition-text {
+  transition: color var(--theme-transition-duration) ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition,
+  .theme-transition-bg,
+  .theme-transition-text {
+    transition: none !important;
+  }
+}

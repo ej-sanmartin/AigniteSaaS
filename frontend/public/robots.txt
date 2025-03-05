@@ -1,0 +1,15 @@
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /private/
+Allow: /
+Allow: /login
+Allow: /signup
+Allow: /about
+Allow: /privacy
+Allow: /terms
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /verify-email
+
+Sitemap: https://yourdomain.com/sitemap.xml 
