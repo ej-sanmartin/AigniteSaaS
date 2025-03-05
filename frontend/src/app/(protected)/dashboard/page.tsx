@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import api from '@/utils/api';
 import type { DashboardStats } from '@/types/dashboard';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -37,12 +38,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader />
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <UserInfoCard user={user} stats={stats} />
-        <SubscriptionCard user={user} stats={stats} />
-      </main>
-    </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <UserInfoCard user={user} stats={stats} />
+          <SubscriptionCard user={user} stats={stats} />
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 } 

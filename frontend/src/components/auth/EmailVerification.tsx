@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import api from '@/utils/api';
 
 export function EmailVerification() {

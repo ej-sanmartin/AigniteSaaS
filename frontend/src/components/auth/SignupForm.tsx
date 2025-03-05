@@ -38,14 +38,27 @@ export function SignupForm() {
     }
   };
 
-  const inputClasses = "mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400";
+  const inputClasses = [
+    "mt-1 block w-full rounded-md border",
+    "border-gray-300 dark:border-gray-600 px-3 py-2",
+    "bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
+    "focus:ring-blue-500 dark:focus:ring-blue-400",
+    "focus:border-blue-500 dark:focus:border-blue-400"
+  ].join(' ');
+
+  const errorContainerClasses = [
+    "bg-red-100 dark:bg-red-900/30",
+    "border border-red-400 dark:border-red-500/50",
+    "text-red-700 dark:text-red-400 px-4 py-3 rounded"
+  ].join(' ');
+
   const labelClasses = "block text-sm font-medium text-gray-700 dark:text-gray-300";
   const errorClasses = "text-red-500 dark:text-red-400 text-sm mt-1";
 
   return (
     <>
       {error && (
-        <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-500/50 text-red-700 dark:text-red-400 px-4 py-3 rounded">
+        <div className={errorContainerClasses}>
           {error}
         </div>
       )}

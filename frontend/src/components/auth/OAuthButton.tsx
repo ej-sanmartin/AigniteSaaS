@@ -2,9 +2,10 @@
 
 import { FC } from 'react';
 import Image from 'next/image';
+import { OAuthProvider } from '@/types/auth';
 
 interface OAuthButtonProps {
-  provider: 'google' | 'linkedin';
+  provider: OAuthProvider;
   onClick?: () => void;
 }
 
