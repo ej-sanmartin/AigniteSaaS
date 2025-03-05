@@ -45,7 +45,7 @@ export default function LandingPage() {
           priceCurrency: 'USD',
           lowPrice: '9',
           highPrice: '99',
-          offerCount: '3'
+          offerCount: '3',
         }
       }
     ]

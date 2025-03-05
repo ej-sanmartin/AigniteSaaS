@@ -9,7 +9,6 @@ export function EmailVerification() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const router = useRouter();
-  const { user } = useAuth();
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
   const [message, setMessage] = useState('Checking verification status...');
 

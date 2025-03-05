@@ -1,6 +1,5 @@
 'use client';
 
-import { ReactNode } from 'react';
 import { Feature } from './types';
 
 interface FeatureCardProps {
