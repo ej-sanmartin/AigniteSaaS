@@ -16,7 +16,8 @@ export default function LandingPage() {
       {
         '@type': 'WebSite',
         name: 'Your App',
-        description: 'Your app helps you manage and optimize your workflow with powerful features and intuitive interface.',
+        description: 'Your app helps you manage and optimize your workflow with ' +
+          'powerful features and intuitive interface.',
         url: 'https://your-domain.com',
         potentialAction: {
           '@type': 'SearchAction',
@@ -55,9 +56,10 @@ export default function LandingPage() {
       <Script
         id="structured-data"
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <div className="min-h-screen bg-white dark:bg-gray-900 scroll-smooth">
+      >
+        {JSON.stringify(jsonLd)}
+      </Script>
+      <div className="min-h-screen bg-white dark:bg-gray-900 scroll-smooth overflow-x-hidden">
         <NavBar />
         <main className="snap-y snap-mandatory">
           <section className="h-screen flex items-center snap-start">
