@@ -1,5 +1,5 @@
 import { stripe } from '../../config/stripe';
-import { executeQuery } from '../../utils/sql';
+import { executeQuery } from '../../db/queryExecutor';
 import {
   UserSubscriptionData,
   UserStripeData,

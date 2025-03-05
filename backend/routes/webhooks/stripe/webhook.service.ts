@@ -1,4 +1,4 @@
-import { executeQuery } from '../../../utils/sql';
+import { executeQuery } from '../../../db/queryExecutor';
 import { QueryResult } from './webhook.types';
 import { SubscriptionWebhookData } from '../../../types/stripe.types';
 

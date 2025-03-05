@@ -1,6 +1,6 @@
 import { QueryConfig } from 'pg';
 import bcrypt from 'bcryptjs';
-import { executeQuery } from '../../utils/sql';
+import { executeQuery } from '../../db/queryExecutor';
 import { User, CreateUserDTO, UpdateUserDTO } from './user.types';
 
 export class UserService {

@@ -1,7 +1,7 @@
 import { QueryConfig } from 'pg';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import config from '../../config/auth';
-import { executeQuery } from '../../utils/sql';
+import { executeQuery } from '../../db/queryExecutor';
 import { OAuthUser, TokenPayload } from './auth.types';
 import { CreateOAuthUserInput } from './auth.validation';
 

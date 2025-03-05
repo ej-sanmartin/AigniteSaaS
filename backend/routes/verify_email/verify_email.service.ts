@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { QueryConfig } from 'pg';
-import { executeQuery } from '../../utils/sql';
+import { executeQuery } from '../../db/queryExecutor';
 import { emailService } from '../../services/email/email';
 import {
   EmailVerificationResult,
