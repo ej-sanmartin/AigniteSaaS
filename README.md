@@ -1,4 +1,4 @@
-# 🚀 AIgnite Saas - Full-Stack SaaS Template
+# 🚀 AIgnite SaaS - Full-Stack SaaS Template
 
 A modern, production-ready template for building SaaS applications with separate frontend and backend services. This template provides a solid foundation for quickly launching new SaaS projects with a focus on maintainability, security, and scalability.
 
