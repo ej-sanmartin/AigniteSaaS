@@ -25,6 +25,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const MAX_RETRY_ATTEMPTS = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,16 +48,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     toast.error(message);
   };
 
-  const refreshToken = async () => {
+  const refreshToken = async (retryAttempt = 0): Promise<boolean> => {
     try {
       await api.post('/api/auth/refresh');
-      // Schedule next refresh 5 minutes before token expires
+      // Success - schedule next refresh
       scheduleTokenRefresh();
+      return true;
     } catch (error) {
+      // If we haven't exceeded max retries, try again with exponential backoff
+      if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+        const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt);
+        console.log(`Retry attempt ${retryAttempt + 1} in ${delay}ms`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return refreshToken(retryAttempt + 1);
+      }
+
+      // Max retries exceeded - handle failure
       handleError({
-        message: 'Session expired',
+        message: 'Session expired after multiple refresh attempts',
         code: 'AUTH_INVALID_TOKEN'
       });
+      return false;
     }
   };
 
@@ -64,8 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(refreshTimeout);
     }
 
-    // Schedule refresh 5 minutes before token expires (19 hours after last refresh)
-    const timeout = setTimeout(refreshToken, 19 * 60 * 60 * 1000);
+    // Schedule refresh 5 minutes before token expires
+    const timeout = setTimeout(() => {
+      refreshToken()
+        .catch(() => {
+          // If all retries fail, user will be logged out by handleError
+          console.error('Token refresh failed after all retry attempts');
+        });
+    }, 19 * 60 * 60 * 1000); // 19 hours
+
     setRefreshTimeout(timeout);
   };
 
