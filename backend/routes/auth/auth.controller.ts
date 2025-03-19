@@ -42,9 +42,11 @@ export class AuthController {
   /**
    * Handles OAuth callback
    */
-  async handleOAuthCallback(req: Request & { user?: OAuthUser }, res: Response): Promise<void> {
+  async handleOAuthCallback(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user;
+      // Use type assertion to fix the TypeScript error
+      const user = req.user as OAuthUser | undefined;
+      
       if (!user) {
         res.status(401).json({ message: 'Authentication failed' });
         return;

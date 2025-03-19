@@ -1,6 +1,5 @@
 import { executeQuery } from '../../../db/queryExecutor';
-import { QueryResult,
-         UserQueryResult,
+import { UserQueryResult,
          SubscriptionStatus } from './webhook.types';
 import { SubscriptionWebhookData } from '../../../types/stripe.types';
 

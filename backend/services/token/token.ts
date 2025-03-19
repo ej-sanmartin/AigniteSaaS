@@ -26,7 +26,9 @@ export class TokenService {
       `,
       values: [userId, token, expiresAt]
     };
-    const result = await executeQuery<{token: string}>(query);
+    
+    const result = await executeQuery<Array<{token: string}>>(query);
+    
     return result[0].token;
   }
 
@@ -45,7 +47,7 @@ export class TokenService {
       values: [token]
     };
 
-    const result = await executeQuery<{user_id: number}>(query);
+    const result = await executeQuery<Array<{user_id: number}>>(query);
     return result[0]?.user_id || null;
   }
 
