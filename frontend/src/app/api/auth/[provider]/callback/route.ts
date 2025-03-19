@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { AuthResponse, OAuthCallbackResponse, OAuthProvider } from '@/types/auth';
+import { OAuthCallbackResponse, OAuthProvider } from '@/types/auth';
 
 export async function GET(
   request: NextRequest,
@@ -17,8 +17,11 @@ export async function GET(
   }
 
   try {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
     const response = await fetch(
-      `${process.env.BACKEND_URL}/auth/${provider}/callback?code=${code}`,
+      `${backendUrl}/auth/${provider}/callback?code=${encodeURIComponent(code)}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -34,7 +37,8 @@ export async function GET(
 
     // Store the token in an HTTP-only cookie
     if (data.data?.token) {
-      cookies().set('auth_token', data.data.token, {
+      const cookieStore = await cookies();
+      cookieStore.set('auth_token', data.data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -45,7 +49,7 @@ export async function GET(
     }
 
     // Redirect to the dashboard or home page
-    return Response.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard`);
+    return Response.redirect(`${appUrl}/dashboard`);
   } catch (error) {
     console.error('OAuth callback error:', error);
     return Response.redirect(

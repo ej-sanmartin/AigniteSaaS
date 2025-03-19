@@ -5,7 +5,11 @@ export async function GET(
   { params }: { params: { provider: string } }
 ) {
   const provider = params.provider;
+  
+  // Make sure BACKEND_URL is defined
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+  
   return Response.redirect(
-    `${process.env.BACKEND_URL}/auth/${provider}`
+    `${backendUrl}/auth/${provider}`
   );
 } 
