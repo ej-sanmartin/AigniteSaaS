@@ -6,10 +6,12 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from 'react';
 import { User, AuthError } from '@/types/auth';
 import api from '@/utils/api';
 import toast from 'react-hot-toast';
+import { useIsomorphicLayoutEffect } from '../hooks/useIsomorphicLayoutEffect';
 
 interface AuthContextType {
   user: User | null;
@@ -190,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Initial auth check
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     checkAuth();
 
     return () => {

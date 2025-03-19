@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from 'react';
 
-// Use useLayoutEffect in browser and useEffect in SSR
+// Use useLayoutEffect on client, useEffect on server
 export const useIsomorphicLayoutEffect = 
   typeof window !== 'undefined' ? useLayoutEffect : useEffect; 
