@@ -39,12 +39,22 @@ export function SubscriptionPlans() {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubscribe = async (priceId: string) => {
+    if (!user) {
+      setError('Please login to subscribe');
+      router.push('/login');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       const { data: { sessionId } } = await api.post('/subscriptions/create-checkout-session', {
         priceId,
+        customerEmail: user.email,
+        metadata: {
+          userId: user.id,
+        }
       });
 
       const stripe = await stripePromise;
@@ -54,6 +64,8 @@ export function SubscriptionPlans() {
 
       const { error: stripeError } = await stripe.redirectToCheckout({
         sessionId,
+        successUrl: `${window.location.origin}/subscription/success`,
+        cancelUrl: `${window.location.origin}/subscription/cancel`,
       });
 
       if (stripeError) {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { executeQuery } from '../utils/sql';
+import { executeQuery } from '../db/queryExecutor';
 import { SubscriptionStatus } from '../types/stripe.types';
 import { TokenPayload } from '../types/auth.types';
 
@@ -27,7 +27,8 @@ export const requireActiveSubscription = async (
   next: NextFunction
 ) => {
   try {
-    const user = req.user as TokenPayload;
+    // Cast Request to include user property from auth middleware
+    const user = (req as Request & { user: TokenPayload }).user;
     const userId = user?.id;
     
     if (!userId) {

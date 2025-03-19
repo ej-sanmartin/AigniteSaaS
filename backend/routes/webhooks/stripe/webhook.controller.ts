@@ -4,7 +4,8 @@ import { webhookService } from './webhook.service';
 import { 
   StripeWebhookRequest, 
   SubscriptionUpdatedEvent,
-  SubscriptionDeletedEvent 
+  SubscriptionDeletedEvent,
+  SubscriptionCreatedEvent
 } from './webhook.types';
 import { subscriptionWebhookSchema } from './webhook.validation';
 
@@ -31,6 +32,21 @@ export class WebhookController {
       );
 
       switch (event.type) {
+        case 'customer.subscription.created': {
+          const subscription = subscriptionWebhookSchema.parse(
+            (event as SubscriptionCreatedEvent).data.object
+          );
+
+          await webhookService.handleSubscriptionCreation({
+            customerId: subscription.customer,
+            subscriptionId: subscription.id,
+            status: subscription.status,
+            priceId: subscription.items.data[0].price.id,
+            currentPeriodEnd: subscription.current_period_end,
+          });
+          break;
+        }
+
         case 'customer.subscription.updated': {
           const subscription = subscriptionWebhookSchema.parse(
             (event as SubscriptionUpdatedEvent).data.object
