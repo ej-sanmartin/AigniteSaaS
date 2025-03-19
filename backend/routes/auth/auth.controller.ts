@@ -7,6 +7,7 @@ import { userService } from '../users/user.service';
 import { loginSchema } from './auth.validation';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { tokenService } from '../../services/token/token';
 
 export class AuthController {
   /**
@@ -41,9 +42,9 @@ export class AuthController {
   /**
    * Handles OAuth callback
    */
-  async handleOAuthCallback(req: Request, res: Response): Promise<void> {
+  async handleOAuthCallback(req: Request & { user?: OAuthUser }, res: Response): Promise<void> {
     try {
-      const user = req.user as OAuthUser;
+      const user = req.user;
       if (!user) {
         res.status(401).json({ message: 'Authentication failed' });
         return;
@@ -122,6 +123,63 @@ export class AuthController {
         message: 'Login failed',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  }
+
+  async refreshToken(req: Request, res: Response): Promise<void> {
+    try {
+      const refreshToken = req.cookies.refresh_token;
+      
+      if (!refreshToken) {
+        res.status(401).json({ message: 'Refresh token required' });
+        return;
+      }
+
+      // Verify the refresh token
+      const userId = await tokenService.verifyRefreshToken(refreshToken);
+      
+      if (!userId) {
+        res.status(401).json({ message: 'Invalid refresh token' });
+        return;
+      }
+
+      // Generate new tokens
+      const user = await userService.getUserById(userId);
+      if (!user) {
+        res.status(401).json({ message: 'User not found' });
+        return;
+      }
+
+      // Generate new tokens
+      const newAccessToken = authService.generateToken({
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Generate new refresh token and revoke the old one
+      const newRefreshToken = await tokenService.createRefreshToken(user.id);
+      await tokenService.revokeRefreshToken(refreshToken, newRefreshToken);
+
+      // Set the new cookies
+      res.cookie('auth_token', newAccessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: authService.getMaxAge(config.jwt.expiresIn)
+      });
+
+      res.cookie('refresh_token', newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: authService.getMaxAge(config.refreshToken.expiresIn)
+      });
+
+      res.json({ message: 'Token refreshed successfully' });
+    } catch (error) {
+      console.error('Refresh token error:', error);
+      res.status(500).json({ message: 'Error refreshing token' });
     }
   }
 }

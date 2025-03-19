@@ -74,3 +74,21 @@ CREATE TABLE subscription_prices (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Create refresh tokens table
+CREATE TABLE refresh_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(255) NOT NULL UNIQUE,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  revoked_at TIMESTAMP WITH TIME ZONE,
+  replaced_by VARCHAR(255),
+  
+  -- Add index for faster token lookups
+  CONSTRAINT idx_refresh_token UNIQUE (token)
+);
+
+-- Add index for user's active tokens
+CREATE INDEX idx_user_active_tokens ON refresh_tokens(user_id) 
+  WHERE revoked_at IS NULL;

@@ -2,12 +2,8 @@ import axios from 'axios';
 import { getCookie } from 'cookies-next';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
-  withCredentials: true, // Enable if using cookies
-  headers: {
-    'Content-Type': 'application/json',
-    // Remove any hardcoded tokens or sensitive data
-  }
+  baseURL: '/api',
+  withCredentials: true, // Important for cookies
 });
 
 // Add request interceptor for auth token
@@ -20,13 +16,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Add response interceptor for error handling
+// Add response interceptor for handling auth errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      // Handle token expiration
-      sessionStorage.removeItem('token');
+      // Redirect to login on auth errors
       window.location.href = '/login';
     }
     return Promise.reject(error);

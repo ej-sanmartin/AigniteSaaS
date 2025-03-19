@@ -18,15 +18,28 @@ export async function POST(request: Request) {
       throw new Error(data.message || 'Login failed');
     }
 
-    // Fix: Use Response object to set cookies
+    // Create response with user data
     const resp = NextResponse.json({ user: data.user });
+
+    // Set the access token
     resp.cookies.set('auth_token', data.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60,
+      maxAge: 24 * 60 * 60, // 24 hours
     });
+
+    // Set the refresh token
+    if (data.refreshToken) {
+      resp.cookies.set('refresh_token', data.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+      });
+    }
 
     return resp;
   } catch (error) {

@@ -1,27 +1,36 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    const body = await request.json();
-    const response = await fetch(`${process.env.BACKEND_URL}/auth/signup`, {
+    const cookieStore = await cookies();
+    const refreshToken = cookieStore.get('refresh_token');
+
+    if (!refreshToken) {
+      return NextResponse.json(
+        { error: 'No refresh token' },
+        { status: 401 }
+      );
+    }
+
+    const response = await fetch(`${process.env.BACKEND_URL}/auth/refresh-token`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        'Cookie': `refresh_token=${refreshToken.value}`,
       },
-      body: JSON.stringify(body),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Signup failed');
+      throw new Error(data.message || 'Token refresh failed');
     }
 
-    // Create response with user data
-    const resp = NextResponse.json({ user: data.user });
+    // Create new response with updated cookies
+    const resp = NextResponse.json({ message: 'Token refreshed' });
 
-    // Set the access token
+    // Set the new access token
     resp.cookies.set('auth_token', data.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -30,7 +39,7 @@ export async function POST(request: Request) {
       maxAge: 24 * 60 * 60, // 24 hours
     });
 
-    // Set the refresh token
+    // Set the new refresh token if provided
     if (data.refreshToken) {
       resp.cookies.set('refresh_token', data.refreshToken, {
         httpOnly: true,
@@ -44,8 +53,8 @@ export async function POST(request: Request) {
     return resp;
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Signup failed' },
-      { status: 400 }
+      { error: 'Failed to refresh token' },
+      { status: 401 }
     );
   }
 } 

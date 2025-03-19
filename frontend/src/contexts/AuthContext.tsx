@@ -29,22 +29,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
+  const [refreshTimeout, setRefreshTimeout] = useState<NodeJS.Timeout>();
 
   const clearError = () => setError(null);
 
   const handleError = (error: AuthError) => {
-    let message = 'An error occurred';
+    let message = error.message;
     
-    if (error.code === 'AUTH_INVALID_CREDENTIALS') {
-      message = 'Invalid email or password';
-    } else if (error.code === 'AUTH_USER_EXISTS') {
-      message = 'User already exists';
-    } else if (error.code === 'AUTH_INVALID_TOKEN') {
+    if (error.code === 'AUTH_INVALID_TOKEN') {
       message = 'Session expired. Please login again';
+      logout();
     }
 
     setError({ message, code: error.code });
     toast.error(message);
+  };
+
+  const refreshToken = async () => {
+    try {
+      await api.post('/api/auth/refresh');
+      // Schedule next refresh 5 minutes before token expires
+      scheduleTokenRefresh();
+    } catch (error) {
+      handleError({
+        message: 'Session expired',
+        code: 'AUTH_INVALID_TOKEN'
+      });
+    }
+  };
+
+  const scheduleTokenRefresh = () => {
+    // Clear any existing refresh timeout
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
+    }
+
+    // Schedule refresh 5 minutes before token expires (19 hours after last refresh)
+    const timeout = setTimeout(refreshToken, 19 * 60 * 60 * 1000);
+    setRefreshTimeout(timeout);
   };
 
   const checkAuth = async () => {
@@ -59,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        scheduleTokenRefresh();
       } else {
         const error = await response.json();
         handleError(error);
@@ -81,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearError();
       const { data } = await api.post('/auth/login', { email, password });
       setUser(data.user);
+      scheduleTokenRefresh();
       toast.success('Successfully logged in');
     } catch (error) {
       handleError({
@@ -99,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearError();
       const { data } = await api.post('/auth/signup', { email, password, name });
       setUser(data.user);
+      scheduleTokenRefresh();
       toast.success('Successfully signed up');
     } catch (error) {
       handleError({
@@ -125,6 +150,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Logout failed');
       }
 
+      // Clear refresh timeout
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+
       setUser(null);
       toast.success('Successfully logged out');
     } catch (error) {
@@ -137,23 +167,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Initial auth check
   useEffect(() => {
     checkAuth();
-  }, []);
 
-  // Refresh token every 15 minutes
-  useEffect(() => {
-    const refreshTokenInterval = setInterval(async () => {
-      try {
-        const response = await api.post('/auth/refresh-token');
-        const { token } = response.data;
-        // Token is handled by HTTP-only cookie
-      } catch (error) {
-        logout();
+    return () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
       }
-    }, 15 * 60 * 1000);
-
-    return () => clearInterval(refreshTokenInterval);
+    };
   }, []);
 
   return (
