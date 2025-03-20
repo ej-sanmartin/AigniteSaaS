@@ -28,14 +28,14 @@ export function NavBar() {
       const elementHeight = element.offsetHeight;
       
       // Adjust offset based on section
-      let offset;
+      let offset: number;
       if (sectionId === 'features') {
         // For Features, center it with a slight upward shift
         const centerOffset = (windowHeight - elementHeight) / 2;
-        offset = elementPosition + window.pageYOffset - centerOffset - 50; // Added 50px upward shift
+        offset = elementPosition + window.scrollY - centerOffset - 50; // Added 50px upward shift
       } else if (sectionId === 'pricing') {
         // For Pricing, align to top with navbar clearance
-        offset = elementPosition + window.pageYOffset - navbarHeight;
+        offset = elementPosition + window.scrollY - navbarHeight;
       }
 
       window.scrollTo({

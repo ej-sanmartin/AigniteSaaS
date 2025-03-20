@@ -21,7 +21,7 @@ export async function GET(
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const response = await fetch(
-      `${backendUrl}/auth/${provider}/callback?code=${encodeURIComponent(code)}`,
+      `${backendUrl}/api/auth/${provider}/callback?code=${encodeURIComponent(code)}`,
       {
         headers: {
           'Content-Type': 'application/json',

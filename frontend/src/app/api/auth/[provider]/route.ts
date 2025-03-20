@@ -10,6 +10,6 @@ export async function GET(
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
   
   return Response.redirect(
-    `${backendUrl}/auth/${provider}`
+    `${backendUrl}/api/auth/${provider}`
   );
 } 
