@@ -33,3 +33,15 @@ export interface UpdateUserDTO {
   lastName?: string;
   role?: UserRole;
 }
+
+export interface TokenPayload {
+  id: number;
+  email: string;
+  role: string;
+}
+
+export interface DashboardStats {
+  lastLogin: string;
+  accountCreated: string;
+  subscriptionStatus: 'active' | 'inactive' | 'canceled';
+}

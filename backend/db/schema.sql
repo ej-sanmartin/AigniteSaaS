@@ -10,6 +10,7 @@ CREATE TABLE users (
   is_verified BOOLEAN DEFAULT false,
   verification_token VARCHAR(255),
   verification_token_expires TIMESTAMP WITH TIME ZONE,
+  last_login TIMESTAMP WITH TIME ZONE,
   
   -- OAuth ID from provider
   oauth_id VARCHAR(255),
@@ -30,6 +31,9 @@ CREATE UNIQUE INDEX idx_users_oauth ON users(oauth_provider, oauth_id)
 
 -- Index for faster email lookups
 CREATE INDEX idx_users_email ON users(email);
+
+-- Index for faster last login lookups
+CREATE INDEX idx_users_last_login ON users(last_login);
 
 -- Add index for verification token lookups
 CREATE INDEX idx_users_verification ON users(verification_token) 

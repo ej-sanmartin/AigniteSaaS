@@ -18,43 +18,36 @@ export default function DashboardPage() {
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
+        setLoading(true);
+        setError(null);
+
+        // Handle OAuth login if needed
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
         const userStr = params.get('user');
         
-        // If we have token and user data, handle OAuth login
         if (token && userStr) {
-          try {
-            await handleOAuthLogin();
-            await fetchDashboardData();
-            return;
-          } catch (authError) {
-            setError('Authentication failed');
-            return;
-          }
+          await handleOAuthLogin();
         }
 
-        // Otherwise, do a regular auth check
+        // Ensure we have valid authentication
         await checkAuth();
-        await fetchDashboardData();
+        
+        // Fetch dashboard data
+        if (user) {
+          const { data } = await api.get('/user/dashboard-stats');
+          setStats(data);
+        }
       } catch (error) {
-        setError(error instanceof Error ? error.message : 'Authentication failed');
+        console.error('Dashboard initialization error:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load dashboard');
       } finally {
         setLoading(false);
       }
     };
 
     initializeDashboard();
-  }, [checkAuth, user, handleOAuthLogin]);
-
-  const fetchDashboardData = async () => {
-    try {
-      const { data } = await api.get('/user/dashboard-stats');
-      setStats(data);
-    } catch (error) {
-      setError('Failed to load dashboard data');
-    }
-  };
+  }, [checkAuth, handleOAuthLogin, user]);
 
   if (loading) {
     return (

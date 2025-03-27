@@ -1,7 +1,7 @@
 import { QueryConfig } from 'pg';
 import bcrypt from 'bcryptjs';
 import { executeQuery } from '../../db/queryExecutor';
-import { User, CreateUserDTO, UpdateUserDTO } from './user.types';
+import { User, CreateUserDTO, UpdateUserDTO, DashboardStats } from './user.types';
 
 export class UserService {
   /**
@@ -180,6 +180,47 @@ export class UserService {
     
     const results = await executeQuery<User[]>(query);
     return results[0] || null;
+  }
+
+  /**
+   * Updates the last login timestamp for a user
+   */
+  async updateLastLogin(userId: number): Promise<void> {
+    const query: QueryConfig = {
+      text: `
+        UPDATE users 
+        SET last_login = CURRENT_TIMESTAMP 
+        WHERE id = $1
+      `,
+      values: [userId]
+    };
+
+    await executeQuery(query);
+  }
+
+  /**
+   * Gets dashboard stats for a user
+   */
+  async getDashboardStats(userId: number): Promise<DashboardStats> {
+    const query: QueryConfig = {
+      text: `
+        SELECT 
+          last_login as "lastLogin",
+          created_at as "accountCreated",
+          subscription_status as "subscriptionStatus"
+        FROM users 
+        WHERE id = $1
+      `,
+      values: [userId]
+    };
+
+    const results = await executeQuery<DashboardStats[]>(query);
+    
+    if (!results.length) {
+      throw new Error('User not found');
+    }
+
+    return results[0];
   }
 }
 

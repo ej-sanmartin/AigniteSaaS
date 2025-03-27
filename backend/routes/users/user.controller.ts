@@ -3,6 +3,7 @@ import { userService } from './user.service';
 import { User, UpdateUserDTO, SafeUser } from './user.types';
 import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
+import { TokenPayload } from './user.types';
 
 export class UserController {
   /**
@@ -149,6 +150,32 @@ export class UserController {
       res.json({ message: 'User deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: 'Error deleting user', error });
+    }
+  }
+
+  /**
+   * Handles getting dashboard stats for a user
+   */
+  async getDashboardStats(req: Request, res: Response): Promise<void> {
+    const user = req.user as TokenPayload;
+    
+    if (!user?.id) {
+      res.status(401).json({ 
+        message: 'User not authenticated',
+        code: 'UNAUTHORIZED'
+      });
+      return;
+    }
+
+    try {
+      const stats = await userService.getDashboardStats(user.id);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      res.status(500).json({ 
+        message: 'Error fetching dashboard stats',
+        code: 'DASHBOARD_STATS_ERROR'
+      });
     }
   }
 }

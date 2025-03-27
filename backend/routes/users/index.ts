@@ -35,4 +35,10 @@ router.delete(
   (req: Request, res) => userController.deleteUser(req, res)
 );
 
+router.get(
+  '/dashboard-stats',
+  verifyToken,
+  (req: Request, res) => userController.getDashboardStats(req, res)
+);
+
 export default router; 

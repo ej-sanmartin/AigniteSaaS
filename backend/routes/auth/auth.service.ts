@@ -103,13 +103,13 @@ export class AuthService {
    * @returns The generated token
    */
   generateToken(payload: TokenPayload): string {
-    if (!config.jwt.secret) {
+    if (!process.env.JWT_SECRET) {
       throw new Error('JWT secret is not configured');
     }
 
     return jwt.sign(
       payload,
-      config.jwt.secret as Secret,
+      process.env.JWT_SECRET as Secret,
       { expiresIn: config.jwt.expiresIn } as SignOptions
     );
   }

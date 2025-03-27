@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<AuthError | null>(null);
   const [refreshTimeout, setRefreshTimeout] = useState<NodeJS.Timeout>();
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
 
   const addDebugInfo = (message: string) => {
     console.log(`AuthContext: ${message}`);
@@ -129,6 +130,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       addDebugInfo('Cleared existing refresh timeout');
     }
 
+    // Check if we have a token before scheduling refresh
+    const token = localStorage.getItem('token');
+    if (!token) {
+      addDebugInfo('No token found, skipping refresh schedule');
+      return;
+    }
+
     // Schedule refresh 5 minutes before token expires
     const timeout = setTimeout(() => {
       addDebugInfo('Token refresh timeout triggered');
@@ -142,16 +150,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addDebugInfo('New token refresh scheduled');
   };
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
+    // Prevent multiple simultaneous auth checks
+    if (isCheckingAuth) {
+      addDebugInfo('Auth check already in progress, skipping');
+      return;
+    }
+
     try {
       console.log('AuthContext: Starting auth check');
+      setIsCheckingAuth(true);
       setIsLoading(true);
       clearError();
       
+      // Check if we have a token before making the request
+      const token = localStorage.getItem('token');
+      console.log('AuthContext: Token from localStorage:', token ? token.substring(0, 20) + '...' : 'none');
+      
+      if (!token) {
+        addDebugInfo('No token found during auth check');
+        throw new Error('No authentication token found');
+      }
+      
+      addDebugInfo(`Making auth check request with token: ${token.substring(0, 10)}...`);
       const { data } = await api.get('/auth/check');
       console.log('AuthContext: Auth check successful');
-      setUser(data.user);
-      scheduleTokenRefresh();
+      
+      // Only update user state if we have valid data
+      if (data.user) {
+        setUser(data.user);
+        // Only schedule refresh if we have a valid token and user
+        scheduleTokenRefresh();
+      } else {
+        throw new Error('No user data received from auth check');
+      }
     } catch (error) {
       console.error('AuthContext: Auth check failed:', error);
       handleError({
@@ -161,8 +193,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
     } finally {
       setIsLoading(false);
+      setIsCheckingAuth(false);
     }
-  };
+  }, [isCheckingAuth, addDebugInfo, handleError, scheduleTokenRefresh]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -224,7 +257,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Clear token from localStorage
-      localStorage.removeItem('auth_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
 
       setUser(null);
       toast.success('Successfully logged out');
@@ -240,72 +274,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleOAuthLogin = async () => {
     try {
+      setIsCheckingAuth(true);
       console.log('AuthContext: Starting OAuth login handling');
       const params = new URLSearchParams(window.location.search);
       const token = params.get('token');
       const userStr = params.get('user');
 
-      console.log('AuthContext: URL params:', { 
-        hasToken: !!token, 
-        hasUser: !!userStr,
-        currentUrl: window.location.href 
-      });
-
       if (!token || !userStr) {
-        console.log('AuthContext: Missing token or user data');
         throw new Error('Incomplete authentication data received');
       }
 
+      console.log('AuthContext: Received OAuth data:', {
+        hasToken: !!token,
+        tokenPreview: token.substring(0, 20) + '...',
+        hasUserStr: !!userStr
+      });
+
       // Parse user data
       const user = JSON.parse(userStr);
-      console.log('AuthContext: Parsed user data:', { 
-        id: user.id, 
-        email: user.email,
-        provider: user.provider 
+      console.log('AuthContext: Parsed user data:', {
+        id: user.id,
+        email: user.email
       });
 
       // Store token in localStorage
-      localStorage.setItem('auth_token', token);
-      console.log('AuthContext: Stored token in localStorage');
+      localStorage.setItem('token', token);
+      console.log('AuthContext: Token stored in localStorage');
+
+      // Set up Authorization header for subsequent requests
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('AuthContext: Authorization header set');
 
       // Set user state immediately
       setUser(user);
-      console.log('AuthContext: Set user state');
+      console.log('AuthContext: User state updated');
 
       // Remove params from URL without reloading
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('token');
       newUrl.searchParams.delete('user');
       window.history.replaceState({}, '', newUrl);
-      console.log('AuthContext: Removed params from URL');
+      console.log('AuthContext: URL parameters cleaned up');
 
-      // Schedule token refresh
+      // Schedule token refresh since we have a valid token
       scheduleTokenRefresh();
-      console.log('AuthContext: Scheduled token refresh');
+      console.log('AuthContext: Token refresh scheduled');
+
+      // If we're not already on the dashboard, redirect there
+      if (!pathname.startsWith('/dashboard')) {
+        console.log('AuthContext: Redirecting to dashboard');
+        router.push('/dashboard');
+      }
 
       // Verify the token is working by making a test request
       try {
-        const { data } = await api.get('/auth/check');
+        await api.get('/auth/check');
         console.log('AuthContext: Token verification successful');
-        
-        // If we're not already on the dashboard, redirect there
-        if (!pathname.startsWith('/dashboard')) {
-          console.log('AuthContext: Redirecting to dashboard');
-          router.push('/dashboard');
-        }
       } catch (error) {
         console.error('AuthContext: Token verification failed:', error);
-        throw new Error('Failed to verify authentication token');
+        throw error;
       }
 
-      console.log('AuthContext: OAuth login completed successfully');
     } catch (error) {
-      console.error('AuthContext: OAuth login handling failed:', error);
+      console.error('AuthContext: OAuth login failed:', error);
+      // Clear token and user state on error
+      localStorage.removeItem('token');
+      api.defaults.headers.common['Authorization'] = '';
+      setUser(null);
       handleError({
         message: 'Failed to complete OAuth login',
         code: 'OAUTH_LOGIN_FAILED'
       });
-      throw error;
+      router.push('/login');
+    } finally {
+      setIsCheckingAuth(false);
     }
   };
 
@@ -313,21 +355,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useIsomorphicLayoutEffect(() => {
     const isProtectedRoute = protectedPaths.some(path => pathname.startsWith(path));
     
-    if (isProtectedRoute) {
+    if (isProtectedRoute && !isCheckingAuth) {
       const params = new URLSearchParams(window.location.search);
       const token = params.get('token');
       const userStr = params.get('user');
 
-      // If we have OAuth data, handle it first
+      // If we have OAuth data, ONLY handle OAuth login
       if (token && userStr) {
-        handleOAuthLogin().catch(error => {
-          console.error('OAuth login failed:', error);
-          checkAuth();
-        });
-      } else {
+        handleOAuthLogin();
+        return; // Exit early, don't do anything else
+      } 
+      
+      // Only check auth if we don't have a user and aren't in OAuth flow
+      if (!user && !window.location.search.includes('token')) {
         checkAuth();
+      } else {
+        setIsLoading(false);
       }
-    } else {
+    } else if (!isProtectedRoute) {
       setIsLoading(false);
     }
 
@@ -336,7 +381,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(refreshTimeout);
       }
     };
-  }, [pathname]);
+  }, [pathname, isCheckingAuth, handleOAuthLogin, checkAuth, user]);
 
   return (
     <AuthContext.Provider
