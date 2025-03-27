@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 
 export function NavBar() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -17,6 +17,10 @@ export function NavBar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -71,12 +75,20 @@ export function NavBar() {
                 Pricing
               </button>
               {user ? (
-                <Link
-                  href="/dashboard"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                >
-                  Dashboard
-                </Link>
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-4 py-2"
+                  >
+                    Logout
+                  </button>
+                </>
               ) : (
                 <>
                   <Link

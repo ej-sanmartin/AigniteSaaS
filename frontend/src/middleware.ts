@@ -28,15 +28,18 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(path)
   );
 
+  // Check for token in cookies or URL parameters
+  const hasToken = authToken || request.nextUrl.searchParams.has('token');
+
   // If the path is protected and there's no token, redirect to login
-  if (isProtectedPath && !authToken) {
+  if (isProtectedPath && !hasToken) {
     const url = new URL('/login', request.url);
     url.searchParams.set('returnTo', pathname);
     return NextResponse.redirect(url);
   }
 
   // If user is authenticated and tries to access auth paths, redirect to dashboard
-  if (isAuthPath && authToken) {
+  if (isAuthPath && hasToken) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -53,6 +56,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|icons).*)',
+    '/((?!^api/|_next/static|_next/image|favicon.ico|icons).*)',
   ],
 }; 

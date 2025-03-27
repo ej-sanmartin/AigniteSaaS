@@ -27,7 +27,6 @@ export function LoginForm() {
   const onSubmit = async (data: LoginForm) => {
     try {
       await login(data.email, data.password);
-      router.push('/dashboard');
     } catch (err) {
       setError('Invalid email or password');
     }

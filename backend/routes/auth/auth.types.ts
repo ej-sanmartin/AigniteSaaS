@@ -13,6 +13,7 @@ export interface OAuthUser {
   provider: 'google' | 'linkedin';
   providerId: string;
   createdAt: Date;
+  password?: string;
 }
 
 export interface TokenPayload {

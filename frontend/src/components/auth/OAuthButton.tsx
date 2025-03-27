@@ -30,7 +30,7 @@ export const OAuthButton: FC<OAuthButtonProps> = ({ provider, onClick }) => {
   const { text, icon, bgColor, textColor, borderColor } = config[provider];
 
   const handleClick = () => {
-    // Redirect to backend OAuth endpoint
+    // Redirect to frontend OAuth endpoint which will then redirect to backend
     window.location.href = `/api/auth/${provider}`;
     onClick?.();
   };

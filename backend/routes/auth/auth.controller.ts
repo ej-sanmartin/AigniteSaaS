@@ -19,9 +19,17 @@ export class AuthController {
     done: (error: any, user?: OAuthUser | false) => void
   ): Promise<void> {
     try {
+      console.log('handleOAuthUser: Starting with profile:', {
+        id: profile.id,
+        email: profile.emails?.[0]?.value,
+        provider
+      });
+
       let user = await authService.findUserByProviderId(provider, profile.id);
+      console.log('handleOAuthUser: Existing user found:', user);
 
       if (!user) {
+        console.log('handleOAuthUser: No existing user found, creating new user');
         const userData = oAuthUserSchema.parse({
           email: profile.emails?.[0]?.value,
           firstName: profile.firstName || '',
@@ -29,12 +37,15 @@ export class AuthController {
           provider,
           providerId: profile.id
         });
+        console.log('handleOAuthUser: Validated user data:', userData);
 
         user = await authService.createOAuthUser(userData);
+        console.log('handleOAuthUser: New user created:', user);
       }
 
       done(null, user);
     } catch (error) {
+      console.error('Error in handleOAuthUser:', error);
       done(error);
     }
   }
@@ -44,13 +55,18 @@ export class AuthController {
    */
   async handleOAuthCallback(req: Request, res: Response): Promise<void> {
     try {
+      console.log('Backend OAuth callback received');
       // Use type assertion to fix the TypeScript error
       const user = req.user as OAuthUser | undefined;
       
       if (!user) {
+        console.log('No user found in request');
+        res.setHeader('Content-Type', 'application/json');
         res.status(401).json({ message: 'Authentication failed' });
         return;
       }
+
+      console.log('User found:', { id: user.id, email: user.email, provider: user.provider });
 
       const token = authService.generateToken({
         id: typeof user.id === 'string' ? parseInt(user.id, 10) : user.id,
@@ -58,17 +74,21 @@ export class AuthController {
         role: user.role
       });
 
-      res.cookie('auth_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: authService.getMaxAge(config.jwt.expiresIn)
-      });
+      // Remove password from user data
+      const { password, ...userWithoutPassword } = user;
 
-      res.redirect('/auth-success');
+      console.log('Generated token and prepared response');
+
+      // Set content type header and return JSON response with 302 status
+      res.setHeader('Content-Type', 'application/json');
+      res.status(302).json({
+        token,
+        user: userWithoutPassword
+      });
     } catch (error) {
       console.error('OAuth callback error:', error);
-      res.redirect('/login?error=auth_failed');
+      res.setHeader('Content-Type', 'application/json');
+      res.status(401).json({ message: 'Authentication failed' });
     }
   }
 
@@ -182,6 +202,68 @@ export class AuthController {
     } catch (error) {
       console.error('Refresh token error:', error);
       res.status(500).json({ message: 'Error refreshing token' });
+    }
+  }
+
+  /**
+   * Handles user logout
+   */
+  async logout(_req: Request, res: Response): Promise<void> {
+    try {
+      res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      res.status(500).json({ message: 'Error during logout' });
+    }
+  }
+
+  /**
+   * Verifies the current user's authentication status
+   */
+  async checkAuth(req: Request, res: Response): Promise<void> {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('No valid Authorization header found');
+        res.status(401).json({ 
+          message: 'Not authenticated',
+          code: 'AUTH_NOT_AUTHENTICATED'
+        });
+        return;
+      }
+
+      const token = authHeader.split(' ')[1];
+      
+      // Verify the token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+        id: number;
+        email: string;
+        role: string;
+      };
+
+      // Get user from database
+      const user = await userService.getUserById(decoded.id);
+      
+      if (!user) {
+        console.log('User not found for token');
+        res.status(401).json({ 
+          message: 'User not found',
+          code: 'AUTH_USER_NOT_FOUND'
+        });
+        return;
+      }
+
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      console.error('Check auth error:', error);
+      res.status(401).json({ 
+        message: 'Invalid token',
+        code: 'AUTH_INVALID_TOKEN'
+      });
     }
   }
 }

@@ -10,29 +10,70 @@ import type { DashboardStats } from '@/types/dashboard';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, checkAuth, handleOAuthLogin } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    const initializeDashboard = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        const userStr = params.get('user');
+        
+        // If we have token and user data, handle OAuth login
+        if (token && userStr) {
+          try {
+            await handleOAuthLogin();
+            await fetchDashboardData();
+            return;
+          } catch (authError) {
+            setError('Authentication failed');
+            return;
+          }
+        }
+
+        // Otherwise, do a regular auth check
+        await checkAuth();
+        await fetchDashboardData();
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Authentication failed');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeDashboard();
+  }, [checkAuth, user, handleOAuthLogin]);
 
   const fetchDashboardData = async () => {
     try {
       const { data } = await api.get('/user/dashboard-stats');
       setStats(data);
     } catch (error) {
-      console.error('Failed to fetch dashboard data');
-    } finally {
-      setLoading(false);
+      setError('Failed to load dashboard data');
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-600 max-w-2xl p-4">
+          <h2 className="text-xl font-bold mb-2">Error</h2>
+          <p className="mb-4">{error}</p>
+        </div>
       </div>
     );
   }

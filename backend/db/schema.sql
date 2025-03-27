@@ -3,9 +3,9 @@ CREATE TABLE users (
   email VARCHAR(255) UNIQUE NOT NULL,
   first_name VARCHAR(50),
   last_name VARCHAR(50),
-  auth_type VARCHAR(20) NOT NULL DEFAULT 'local' CHECK (auth_type IN ('local', 'google', 'linkedin')),
-  password VARCHAR(255) NOT NULL CHECK ((auth_type = 'local' AND password IS NOT NULL) OR 
-                                      (auth_type != 'local' AND password = '')),
+  oauth_provider VARCHAR(20) NOT NULL DEFAULT 'local' CHECK (oauth_provider IN ('local', 'google', 'linkedin')),
+  password VARCHAR(255) NOT NULL CHECK ((oauth_provider = 'local' AND password IS NOT NULL) OR 
+                                      (oauth_provider != 'local' AND password = '')),
   role VARCHAR(50) NOT NULL DEFAULT 'user',
   is_verified BOOLEAN DEFAULT false,
   verification_token VARCHAR(255),
@@ -24,9 +24,9 @@ CREATE TABLE users (
   price_id VARCHAR(255)
 );
 
--- Add a unique constraint for auth_type + OAuth ID combination
-CREATE UNIQUE INDEX idx_users_oauth ON users(auth_type, oauth_id) 
-  WHERE auth_type != 'local' AND oauth_id IS NOT NULL;
+-- Add a unique constraint for oauth_provider + OAuth ID combination
+CREATE UNIQUE INDEX idx_users_oauth ON users(oauth_provider, oauth_id) 
+  WHERE oauth_provider != 'local' AND oauth_id IS NOT NULL;
 
 -- Index for faster email lookups
 CREATE INDEX idx_users_email ON users(email);

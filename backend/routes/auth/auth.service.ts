@@ -43,19 +43,21 @@ export class AuthService {
    * @returns The created user
    */
   async createOAuthUser(userData: CreateOAuthUserInput): Promise<OAuthUser> {
+    console.log('createOAuthUser: Starting with data:', userData);
+    
     const query: QueryConfig = {
       text: `
         INSERT INTO users (
           email,
           first_name,
           last_name,
-          auth_type,
-          password,
           oauth_provider,
+          password,
           oauth_id,
-          is_verified
+          is_verified,
+          role
         )
-        VALUES ($1, $2, $3, $4, '', $5, $6, true)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING 
           id,
           email,
@@ -71,12 +73,28 @@ export class AuthService {
         userData.firstName,
         userData.lastName,
         userData.provider,
-        userData.providerId
+        '', // empty password for OAuth users
+        userData.providerId,
+        true, // OAuth users are pre-verified
+        userData.role || 'user' // Default to 'user' role if not specified
       ]
     };
     
-    const results = await executeQuery<OAuthUser[]>(query);
-    return results[0];
+    try {
+      console.log('createOAuthUser: Executing query with values:', query.values);
+      const results = await executeQuery<OAuthUser[]>(query);
+      console.log('createOAuthUser: Query results:', results);
+      
+      if (!results.length) {
+        console.error('createOAuthUser: No results returned from query');
+        throw new Error('Failed to create user');
+      }
+
+      return results[0];
+    } catch (error) {
+      console.error('Error creating OAuth user:', error);
+      throw error;
+    }
   }
 
   /**

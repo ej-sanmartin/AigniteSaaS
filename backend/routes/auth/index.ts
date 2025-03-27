@@ -100,6 +100,14 @@ router.post('/login',
   (req, res) => authController.login(req, res)
 );
 
+router.post('/logout', 
+  (req, res) => authController.logout(req, res)
+);
+
+router.get('/check',
+  (req, res) => authController.checkAuth(req, res)
+);
+
 router.use('/verify', verifyEmailRouter);
 
-export default router; 
+export default router;

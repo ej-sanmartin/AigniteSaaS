@@ -1,31 +1,14 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import api from '@/utils/api';
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token');
-
-  if (!token) {
-    return NextResponse.json(
-      { error: 'Not authenticated' },
-      { status: 401 }
-    );
-  }
-
   try {
-    const response = await fetch(`${process.env.BACKEND_URL}/api/users/me`, {
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to verify token');
-    }
-
-    const data = await response.json();
-    return NextResponse.json({ user: data });
+    console.log('Auth check: Forwarding request to backend');
+    const { data } = await api.get('/auth/check');
+    console.log('Auth check: Successfully verified token');
+    return NextResponse.json(data);
   } catch (error) {
+    console.error('Auth check failed:', error);
     return NextResponse.json(
       { error: 'Authentication failed' },
       { status: 401 }
