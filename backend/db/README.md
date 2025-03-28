@@ -1,10 +1,10 @@
-# Database Management
+# 🗄️ Database Management
 
 This directory contains the PostgreSQL database schema and utilities for the application.
 
-## Setup
+## 🛠️ Setup
 
-### MacOS Setup
+### 🍎 MacOS Setup
 
 1. Install PostgreSQL using Homebrew:
    ```bash
@@ -35,7 +35,7 @@ This directory contains the PostgreSQL database schema and utilities for the app
    DATABASE_URL=postgresql://saas_user:your_password@localhost:5432/saas_dev
    ```
 
-### Linux Setup
+### 🐧 Linux Setup
 
 1. Install PostgreSQL:
    ```bash
@@ -55,28 +55,28 @@ This directory contains the PostgreSQL database schema and utilities for the app
    GRANT ALL PRIVILEGES ON DATABASE saas_dev TO saas_user;
    ```
 
-## Schema Overview
+## 📊 Schema Overview
 
-### Tables
+### 📑 Tables
 
-1. **users**
+1. **👥 users**
    - User authentication (Local, Google, LinkedIn)
    - Role-based access control
    - OAuth integration
    - Subscription management
    - Automated timestamps
 
-2. **subscription_history**
+2. **📈 subscription_history**
    - Subscription change tracking
    - User subscription timeline
    - Payment history reference
 
-3. **subscription_prices**
+3. **💰 subscription_prices**
    - Stripe price integration
    - Subscription tier management
    - Currency and billing settings
 
-## Database Maintenance
+## 🔄 Database Maintenance
 
 ```bash
 # Backup
@@ -91,24 +91,24 @@ createdb -U saas_user saas_dev
 psql -U saas_user -d saas_dev -f schema.sql
 ```
 
-## Best Practices
+## ✨ Best Practices
 
-1. **Data Safety**
+1. **🔒 Data Safety**
    - Use transactions for multi-step operations
    - Regular backups
    - Validate data before insertion
 
-2. **Performance**
+2. **⚡ Performance**
    - Utilize existing indexes
    - Regular VACUUM ANALYZE
    - Monitor query performance
 
-3. **Security**
+3. **🛡️ Security**
    - Use parameterized queries
    - Principle of least privilege
    - Regular security audits
 
-## Troubleshooting
+## 🔍 Troubleshooting
 
 ```bash
 # Test connection
@@ -121,14 +121,14 @@ brew services list
 sudo service postgresql status
 ```
 
-## Required Environment Variables
+## ⚙️ Required Environment Variables
 
 ```bash
 DATABASE_URL=postgresql://saas_user:password@localhost:5432/saas_dev
 NODE_ENV=development|production|test  # Optional, defaults to development
 ```
 
-## Resources
+## 📚 Resources
 
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
 - [Node-Postgres Documentation](https://node-postgres.com/)
