@@ -41,11 +41,6 @@ export async function GET(
     }
 
     const data = await backendResponse.json();
-    console.log('Received OAuth data:', { 
-      hasToken: !!data.token, 
-      hasRefreshToken: !!data.refreshToken,
-      hasUser: !!data.user 
-    });
 
     if (!data.token || !data.refreshToken || !data.user) {
       throw new Error('Invalid response from authentication server');
@@ -83,7 +78,6 @@ export async function GET(
 
     return response;
   } catch (error) {
-    console.error('OAuth callback error:', error);
     return NextResponse.redirect(
       `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Authentication failed'

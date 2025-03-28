@@ -8,16 +8,6 @@ export async function GET(request: Request) {
     const user = url.searchParams.get('user');
     const returnTo = url.searchParams.get('returnTo') || '/dashboard';
 
-    console.log('Auth callback received:', {
-      token: token ? 'present' : 'missing',
-      token_length: token?.length,
-      refreshToken: refreshToken ? 'present' : 'missing',
-      refreshToken_length: refreshToken?.length,
-      user: user ? 'present' : 'missing',
-      user_length: user?.length,
-      returnTo
-    });
-
     if (!token || !refreshToken || !user) {
       throw new Error('Missing required parameters');
     }
@@ -25,7 +15,6 @@ export async function GET(request: Request) {
     // Create response with redirect to dashboard
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const redirectUrl = `${frontendUrl}${returnTo}`;
-    console.log('Redirecting to:', redirectUrl);
 
     const response = NextResponse.redirect(redirectUrl, {
       status: 302, // Use 302 for temporary redirect
@@ -63,7 +52,6 @@ export async function GET(request: Request) {
         // Test if it's valid JSON after decoding
         JSON.parse(userData);
       } catch (error) {
-        console.error('Failed to parse user data:', error);
         userData = user; // Fallback to original
       }
     }
@@ -80,7 +68,6 @@ export async function GET(request: Request) {
 
     return response;
   } catch (error) {
-    console.error('Auth callback error:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     return NextResponse.redirect(
       `${frontendUrl}/login?error=${encodeURIComponent(

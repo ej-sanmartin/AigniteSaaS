@@ -30,14 +30,6 @@ export function middleware(request: NextRequest) {
   const authToken = request.cookies.get('auth_token');
   const refreshToken = request.cookies.get('refresh_token');
   const userCookie = request.cookies.get('user');
-
-  // Debug cookie information
-  console.log(`[Middleware] Path: ${pathname}, Cookies:`, {
-    authToken: authToken ? 'present' : 'missing',
-    refreshToken: refreshToken ? 'present' : 'missing',
-    userCookie: userCookie ? 'present' : 'missing',
-    allCookies: Array.from(request.cookies.getAll()).map(c => c.name)
-  });
   
   // Check if the path is protected
   const isProtectedPath = protectedPaths.some(path => 

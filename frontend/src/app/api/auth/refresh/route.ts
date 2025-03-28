@@ -70,7 +70,6 @@ export async function POST() {
 
     return resp;
   } catch (error) {
-    console.error('Refresh error:', error);
     return NextResponse.json(
       { error: 'Failed to refresh token' },
       { status: 401 }

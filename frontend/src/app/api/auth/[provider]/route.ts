@@ -20,7 +20,6 @@ export async function GET(
       `${backendUrl}/api/auth/${provider}?returnTo=${encodeURIComponent(returnTo)}`
     );
   } catch (error) {
-    console.error('OAuth error:', error);
     // Redirect to login with error message
     return NextResponse.redirect(
       `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent(

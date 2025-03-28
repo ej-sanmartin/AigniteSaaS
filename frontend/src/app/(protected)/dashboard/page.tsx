@@ -64,34 +64,17 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Log auth state
-    console.log('Dashboard auth state:', {
-      user: !!user,
-      isAuthLoading,
-      isAuthenticated,
-      cookies: {
-        auth_token: !!Cookies.get('auth_token'),
-        refresh_token: !!Cookies.get('refresh_token'),
-        user: !!Cookies.get('user')
-      }
-    });
-  }, [user, isAuthLoading, isAuthenticated]);
-
-  useEffect(() => {
     const fetchDashboardData = async () => {
       if (isAuthLoading) {
-        console.log('Auth is still loading, waiting...');
         return;
       }
       
       if (!user) {
-        console.log('No user data available, skipping fetch');
         setLoading(false);
         return;
       }
 
       try {
-        console.log('Fetching dashboard data...');
         setLoading(true);
         setError(null);
         
@@ -104,13 +87,10 @@ export default function DashboardPage() {
           const fetchPromise = api.get('/users/dashboard-stats');
           const result = await Promise.race([fetchPromise, timeoutPromise]) as {data: DashboardStats};
           
-          console.log('Dashboard data received:', result.data);
           setStats(result.data);
         } catch (apiError) {
-          console.error('API call failed, using mock data:', apiError);
           // Check if we still have auth cookies - avoid redirecting if our session is valid
           if (Cookies.get('auth_token') || Cookies.get('refresh_token')) {
-            console.log('Still have auth cookies, using mock data instead of redirecting');
             // Mock data for demonstration or when API fails
             const mockData: DashboardStats = {
               lastLogin: new Date().toISOString(),
@@ -128,7 +108,6 @@ export default function DashboardPage() {
           }
         }
       } catch (error) {
-        console.error('Dashboard data fetch error:', error);
         setError(error instanceof Error ? error.message : 'Failed to load dashboard');
       } finally {
         setLoading(false);

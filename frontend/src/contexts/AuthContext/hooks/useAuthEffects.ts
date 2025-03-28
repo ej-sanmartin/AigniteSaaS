@@ -29,14 +29,11 @@ export const useAuthEffects = () => {
       isRefreshing.current = true;
 
       try {
-        console.log('Attempting to refresh token');
         const { data } = await api.post('/auth/refresh');
         
         if (!data.token) {
           throw new Error('No token received from refresh endpoint');
         }
-
-        console.log('Token refresh successful');
         
         // Update user data if needed
         if (data.user) {
@@ -57,7 +54,6 @@ export const useAuthEffects = () => {
         
         setRefreshTimeout(nextTimeout);
       } catch (error) {
-        console.error('Token refresh failed:', error);
         // Clear user state on refresh failure
         Cookies.remove('user');
         setUser(null);
@@ -78,7 +74,6 @@ export const useAuthEffects = () => {
     // Only set up refresh once when user becomes available
     // and if we haven't already set it up
     if (user && !isSetupComplete.current && !isRefreshing.current) {
-      console.log('Setting up token refresh');
       isSetupComplete.current = true;
       scheduleTokenRefresh();
     }
