@@ -107,6 +107,16 @@ cp .env.example .env
 npm run dev
 ```
 
+3. Database Setup:
+```bash
+# Follow instructions in backend/db/README.md for your OS
+# For MacOS:
+brew install postgresql@14
+brew services start postgresql@14
+createdb saas_dev
+createuser -P saas_user
+```
+
 Visit:
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:3001`
