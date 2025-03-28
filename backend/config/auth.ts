@@ -38,12 +38,12 @@ const config: AuthConfig = {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/google/callback`
+      callbackURL: `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/auth/google/callback`
     },
     linkedin: {
       clientId: process.env.LINKEDIN_CLIENT_ID!,
       clientSecret: process.env.LINKEDIN_CLIENT_SECRET!,
-      callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/linkedin/callback`
+      callbackURL: `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/auth/linkedin/callback`
     }
   }
 };

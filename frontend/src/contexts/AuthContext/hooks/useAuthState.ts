@@ -31,32 +31,89 @@ export const useAuthState = () => {
       setIsLoading(true);
       setError(null);
 
-      // Check for stored tokens and user data
-      const storedToken = localStorage.getItem('token');
-      const storedRefreshToken = localStorage.getItem('refreshToken');
-      const storedUser = localStorage.getItem('user');
+      // We only need to check for user cookie, since auth_token and refresh_token are httpOnly
+      const userCookie = Cookies.get('user');
+      const authToken = Cookies.get('auth_token');
+      const refreshToken = Cookies.get('refresh_token');
       
-      if (storedToken && storedRefreshToken && storedUser) {
-        console.log('Found stored tokens and user data');
-        api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+      // Get all cookies
+      const allCookies = document.cookie;
+      
+      // Debug cookie values
+      console.log('Auth initialization - cookies:', {
+        userCookie: userCookie ? 'present' : 'missing',
+        userCookie_value: userCookie ? userCookie.substring(0, 30) + '...' : null,
+        authToken: authToken ? 'present' : 'missing',
+        authToken_value: authToken ? authToken.substring(0, 10) + '...' : null,
+        refreshToken: refreshToken ? 'present' : 'missing',
+        allCookies: allCookies ? `Found ${allCookies.split(';').length} cookies` : 'No cookies',
+        cookieNames: allCookies ? allCookies.split(';').map(c => c.trim().split('=')[0]) : []
+      });
+      
+      // If user cookie is missing but refresh token is present, try to refresh the session
+      if ((!userCookie || !authToken) && refreshToken) {
+        console.log('Auth tokens missing but refresh token present - attempting to recover session');
+        try {
+          // Use the refresh endpoint to get a fresh set of tokens and user data
+          const response = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            credentials: 'include', // Important for cookies
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.user) {
+              console.log('Successfully recovered user data from refresh');
+              
+              // If we have a new auth token from the response, set it as a cookie
+              if (data.token && !Cookies.get('auth_token')) {
+                console.log('Setting auth_token cookie from refresh response');
+                Cookies.set('auth_token', data.token, {
+                  secure: process.env.NODE_ENV === 'production',
+                  sameSite: 'lax',
+                  path: '/'
+                });
+              }
+              
+              // Update user state from response
+              setUser(data.user);
+              return; // Early return since we've handled auth
+            }
+          } else {
+            console.error('Session recovery failed with status:', response.status);
+          }
+        } catch (refreshError) {
+          console.error('Failed to recover session:', refreshError);
+        }
+      }
+      
+      if (userCookie) {
+        console.log('Found user data');
         
         try {
           // Parse stored user data
-          const parsedUser = JSON.parse(storedUser);
+          let parsedUser;
+          try {
+            // First try parsing directly
+            parsedUser = JSON.parse(userCookie);
+          } catch (e) {
+            // If that fails, try decoding URI component first
+            parsedUser = JSON.parse(decodeURIComponent(userCookie));
+          }
+          
           setUser(parsedUser);
+          console.log('User data parsed successfully:', parsedUser.email);
 
-          // Verify token is still valid
-          const { data } = await api.get('/auth/check');
-          if (!data.user) {
-            throw new Error('No user data in response');
+          // If we're on the login page and have valid auth, redirect to dashboard
+          const currentPath = window.location.pathname;
+          if (currentPath === '/login' || currentPath === '/signup') {
+            router.push('/dashboard');
           }
         } catch (error) {
-          console.error('Failed to get user data:', error);
-          // If we can't get user data, clear everything and force re-login
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          delete api.defaults.headers.common['Authorization'];
+          console.error('Failed to parse user data:', error, 'Cookie value:', userCookie);
+          // If we can't parse user data, clear everything and force re-login
+          Cookies.remove('user');
           setUser(null);
           setError({ 
             message: 'Session expired. Please login again.', 
@@ -64,7 +121,7 @@ export const useAuthState = () => {
           });
         }
       } else {
-        console.log('No stored tokens found');
+        console.log('No user data found');
         setUser(null);
       }
     } catch (error) {
@@ -76,7 +133,7 @@ export const useAuthState = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [router]);
 
   // Initialize auth state
   useEffect(() => {

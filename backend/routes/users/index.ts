@@ -18,6 +18,12 @@ router.get(
 );
 
 router.get(
+  '/dashboard-stats',
+  verifyToken,
+  (req: Request, res) => userController.getDashboardStats(req, res)
+);
+
+router.get(
   '/:id',
   verifyToken,
   (req: Request, res) => userController.getUserById(req, res)
@@ -33,12 +39,6 @@ router.delete(
   '/:id',
   verifyToken,
   (req: Request, res) => userController.deleteUser(req, res)
-);
-
-router.get(
-  '/dashboard-stats',
-  verifyToken,
-  (req: Request, res) => userController.getDashboardStats(req, res)
 );
 
 export default router; 

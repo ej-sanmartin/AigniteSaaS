@@ -23,11 +23,12 @@ export async function POST(request: Request) {
 
     // Set the access token
     resp.cookies.set('auth_token', data.token, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 24 * 60 * 60, // 24 hours
+      // Don't set domain - let browser determine it automatically
     });
 
     // Set the refresh token
@@ -38,8 +39,23 @@ export async function POST(request: Request) {
         sameSite: 'lax',
         path: '/',
         maxAge: 7 * 24 * 60 * 60, // 7 days
+        // Don't set domain - let browser determine it automatically
       });
     }
+
+    // Add the user cookie - make sure we have valid JSON
+    const userData = typeof data.user === 'string' 
+      ? data.user 
+      : JSON.stringify(data.user);
+      
+    resp.cookies.set('user', userData, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60, // 24 hours
+      // Don't set domain - let browser determine it automatically
+    });
 
     return resp;
   } catch (error) {

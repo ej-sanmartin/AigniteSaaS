@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAuthState } from './useAuthState';
 import api from '@/utils/api';
 import { TOKEN_REFRESH_INTERVAL } from '../utils/constants';
+import Cookies from 'js-cookie';
 
 export const useAuthEffects = () => {
   const {
@@ -17,6 +18,7 @@ export const useAuthEffects = () => {
   } = useAuthState();
 
   const isRefreshing = useRef(false);
+  const isSetupComplete = useRef(false);
 
   const scheduleTokenRefresh = useCallback(() => {
     if (isRefreshing.current) return;
@@ -27,26 +29,25 @@ export const useAuthEffects = () => {
       isRefreshing.current = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
-
         console.log('Attempting to refresh token');
-        const { data } = await api.post('/auth/refresh', { refreshToken });
+        const { data } = await api.post('/auth/refresh');
         
         if (!data.token) {
           throw new Error('No token received from refresh endpoint');
         }
 
         console.log('Token refresh successful');
-        localStorage.setItem('token', data.token);
         
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
+        // Update user data if needed
+        if (data.user) {
+          setUser(data.user);
+          Cookies.set('user', JSON.stringify(data.user), {
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            expires: 1 // 1 day
+          });
         }
-        
-        api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
         
         // Schedule next refresh
         const nextTimeout = setTimeout(() => {
@@ -57,11 +58,8 @@ export const useAuthEffects = () => {
         setRefreshTimeout(nextTimeout);
       } catch (error) {
         console.error('Token refresh failed:', error);
-        // Clear token and user state on refresh failure
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        delete api.defaults.headers.common['Authorization'];
+        // Clear user state on refresh failure
+        Cookies.remove('user');
         setUser(null);
         setError({ 
           message: 'Session expired. Please login again.', 
@@ -77,15 +75,17 @@ export const useAuthEffects = () => {
 
   // Handle token refresh
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const refreshToken = localStorage.getItem('refreshToken');
-    
-    if (user && token && refreshToken) {
+    // Only set up refresh once when user becomes available
+    // and if we haven't already set it up
+    if (user && !isSetupComplete.current && !isRefreshing.current) {
       console.log('Setting up token refresh');
+      isSetupComplete.current = true;
       scheduleTokenRefresh();
-    } else {
-      console.log('No user or tokens found, skipping token refresh');
-      clearRefreshTimeout();
+    }
+
+    // If user is logged out, reset the setup flag
+    if (!user) {
+      isSetupComplete.current = false;
     }
 
     // Cleanup on unmount

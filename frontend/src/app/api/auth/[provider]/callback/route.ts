@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { OAuthCallbackResponse, OAuthProvider } from '@/types/auth';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,21 +51,37 @@ export async function GET(
       throw new Error('Invalid response from authentication server');
     }
 
-    // Set tokens and user data in localStorage through a script
-    const script = `
-      <script>
-        window.localStorage.setItem('token', '${data.token}');
-        window.localStorage.setItem('refreshToken', '${data.refreshToken}');
-        window.localStorage.setItem('user', '${JSON.stringify(data.user)}');
-        window.location.href = '/dashboard';
-      </script>
-    `;
+    // Create response with redirect to dashboard
+    const response = NextResponse.redirect(
+      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+    );
 
-    return new Response(script, {
-      headers: {
-        'Content-Type': 'text/html',
-      },
+    // Set HTTP-only cookies for tokens
+    response.cookies.set('token', data.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 // 24 hours
     });
+
+    response.cookies.set('refreshToken', data.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 // 7 days
+    });
+
+    // Set user data in a non-HTTOnly cookie for client-side access
+    response.cookies.set('user', JSON.stringify(data.user), {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 // 24 hours
+    });
+
+    return response;
   } catch (error) {
     console.error('OAuth callback error:', error);
     return NextResponse.redirect(

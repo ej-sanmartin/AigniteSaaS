@@ -8,25 +8,26 @@ export const verifyToken = (
   res: Response,
   next: NextFunction
 ): Response | void => {
+  // Get token from Authorization header or cookies
+  let token: string | undefined;
+  
+  // First try Authorization header
   const authHeader = req.headers.authorization;
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('No valid Authorization header found');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } 
+  // If no Authorization header, try cookies
+  else if (req.cookies && req.cookies.auth_token) {
+    token = req.cookies.auth_token;
+  }
+  
+  if (!token) {
     return res.status(403).json({ message: 'No token provided' });
   }
 
-  const token = authHeader.split(' ')[1];
-  console.log('Verifying token:', token.substring(0, 20) + '...');
-
   try {
-    console.log('Attempting to verify token with JWT_SECRET');
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload;
-    console.log('Token decoded successfully. Payload:', {
-      id: decoded.id,
-      email: decoded.email,
-      role: decoded.role,
-      raw: decoded
-    });
     
     // Set the user object on the request
     req.user = {
@@ -35,13 +36,10 @@ export const verifyToken = (
       role: decoded.role
     };
     
-    console.log('User set on request:', req.user);
     next();
   } catch (error) {
-    console.error('Token verification failed:', error);
     if (error instanceof jwt.JsonWebTokenError) {
-      console.error('JWT Error type:', error.name);
-      console.error('JWT Error message:', error.message);
+      return res.status(401).json({ message: 'Unauthorized: ' + error.message });
     }
     return res.status(401).json({ message: 'Unauthorized' });
   }

@@ -17,18 +17,18 @@ export function SubscriptionCard({ user, stats }: SubscriptionCardProps) {
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-lg font-medium mb-4">Subscription Status</h2>
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+      <h2 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Subscription Status</h2>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">Current Plan</p>
-          <p className="font-medium">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Current Plan</p>
+          <p className="font-medium text-gray-900 dark:text-white">
             {user?.subscription?.plan || 'No active plan'}
           </p>
           <p className={`text-sm mt-1 ${
             stats?.subscriptionStatus === 'active' 
-              ? 'text-green-600' 
-              : 'text-red-600'
+              ? 'text-green-600 dark:text-green-500' 
+              : 'text-red-600 dark:text-red-500'
           }`}>
             {stats?.subscriptionStatus === 'active' ? 'Active' : 'Inactive'}
           </p>

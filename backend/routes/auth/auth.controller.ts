@@ -60,8 +60,8 @@ export class AuthController {
       
       if (!user) {
         console.log('No user found in request');
-        res.setHeader('Content-Type', 'application/json');
-        res.status(401).json({ message: 'Authentication failed' });
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Authentication failed')}`);
         return;
       }
 
@@ -76,8 +76,8 @@ export class AuthController {
       const dbUser = await userService.getUserById(user.id);
       if (!dbUser) {
         console.error('User not found in database after OAuth flow');
-        res.setHeader('Content-Type', 'application/json');
-        res.status(401).json({ message: 'User not found in database' });
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('User not found')}`);
         return;
       }
 
@@ -99,17 +99,24 @@ export class AuthController {
 
       console.log('Generated tokens and prepared response');
 
-      // Set content type header and return JSON response with 200 status
-      res.setHeader('Content-Type', 'application/json');
-      res.status(200).json({
-        token: accessToken,
-        refreshToken,
-        user: userWithoutPassword
-      });
+      // Get returnTo from query params or default to dashboard
+      const returnTo = req.query.returnTo as string || '/dashboard';
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+      // Redirect back to frontend with tokens and user data
+      const redirectUrl = new URL(`${frontendUrl}/api/auth/callback`);
+      redirectUrl.searchParams.set('auth_token', accessToken);
+      redirectUrl.searchParams.set('refresh_token', refreshToken);
+      redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
+      redirectUrl.searchParams.set('returnTo', returnTo);
+
+      res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('OAuth callback error:', error);
-      res.setHeader('Content-Type', 'application/json');
-      res.status(401).json({ message: 'Authentication failed' });
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(
+        error instanceof Error ? error.message : 'Authentication failed'
+      )}`);
     }
   }
 

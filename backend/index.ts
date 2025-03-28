@@ -4,6 +4,7 @@ import express from 'express';
 import passport from 'passport';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { apiLimiter } from './middleware/rateLimiter';
 import authRoutes from './routes/auth/index';
 import verifyEmailRoutes from './routes/verify_email/index';
@@ -44,6 +45,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(passport.initialize());
 app.use(express.urlencoded({ extended: true }));
 

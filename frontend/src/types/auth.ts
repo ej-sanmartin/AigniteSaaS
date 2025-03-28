@@ -8,6 +8,17 @@ export type UserRole = 'user' | 'admin';
 // OAuth providers supported by the system
 export type OAuthProvider = 'google' | 'linkedin';
 
+// Subscription status types
+export type SubscriptionStatus = 'active' | 'inactive' | 'canceled' | 'trial';
+
+// Subscription plan interface
+export interface Subscription {
+  plan: string;
+  status: SubscriptionStatus;
+  expiresAt?: Date;
+  startedAt?: Date;
+}
+
 // Safe user data (no sensitive information)
 export interface User {
   id: number;
@@ -15,9 +26,10 @@ export interface User {
   firstName: string;
   lastName: string;
   role: UserRole;
-  isVerified: boolean;
+  isVerified?: boolean;
+  subscription?: Subscription;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt?: Date;
 }
 
 // Auth response from backend after successful authentication

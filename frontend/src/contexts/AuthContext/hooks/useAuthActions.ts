@@ -6,6 +6,7 @@ import api from '@/utils/api';
 import toast from 'react-hot-toast';
 import { useAuthState } from './useAuthState';
 import { useAuthEffects } from './useAuthEffects';
+import Cookies from 'js-cookie';
 
 export const useAuthActions = () => {
   const router = useRouter();
@@ -15,33 +16,81 @@ export const useAuthActions = () => {
     setError,
     clearError
   } = useAuthState();
-  const { scheduleTokenRefresh, checkAuth } = useAuthEffects();
+  const { scheduleTokenRefresh, clearRefreshTimeout } = useAuthEffects();
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, returnTo: string = '/dashboard') => {
     try {
       setIsLoading(true);
       clearError();
       const { data } = await api.post('/auth/login', { email, password });
       
+      if (data.token) {
+        Cookies.set('auth_token', data.token, {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: 1 // 1 day
+        });
+      }
+      
+      if (data.refreshToken) {
+        Cookies.set('refresh_token', data.refreshToken, {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: 7 // 7 days
+        });
+      }
+      
+      if (data.user) {
+        Cookies.set('user', JSON.stringify(data.user), {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: 1 // 1 day
+        });
+      }
+      
       setUser(data.user);
       scheduleTokenRefresh();
-      await checkAuth();
       
       toast.success('Successfully logged in');
-      router.push('/dashboard');
+      router.push(returnTo);
     } catch (error) {
       setError({ message: 'Login failed. Please check your credentials.', code: 'LOGIN_FAILED' });
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setIsLoading, setError, clearError, scheduleTokenRefresh, checkAuth, router]);
+  }, [setUser, setIsLoading, setError, clearError, scheduleTokenRefresh, router]);
 
   const signup = useCallback(async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
       clearError();
       const { data } = await api.post('/auth/signup', { email, password, name });
+      
+      if (data.token) {
+        Cookies.set('auth_token', data.token, {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: 1 // 1 day
+        });
+      }
+      
+      if (data.refreshToken) {
+        Cookies.set('refresh_token', data.refreshToken, {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: 7 // 7 days
+        });
+      }
+      
+      if (data.user) {
+        Cookies.set('user', JSON.stringify(data.user), {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: 1 // 1 day
+        });
+      }
+      
       setUser(data.user);
       scheduleTokenRefresh();
       toast.success('Successfully signed up');
@@ -59,16 +108,22 @@ export const useAuthActions = () => {
       clearError();
       
       await api.post('/auth/logout');
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
+      Cookies.remove('auth_token');
+      Cookies.remove('refresh_token');
+      Cookies.remove('user');
+      delete api.defaults.headers.common['Authorization'];
+      
       setUser(null);
+      clearRefreshTimeout();
+      
       toast.success('Successfully logged out');
+      router.push('/login');
     } catch (error) {
       setError({ message: 'Failed to logout', code: 'LOGOUT_FAILED' });
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setIsLoading, setError, clearError]);
+  }, [setUser, setIsLoading, setError, clearError, clearRefreshTimeout, router]);
 
   return {
     login,

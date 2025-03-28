@@ -200,6 +200,8 @@ export class UserService {
 
   /**
    * Gets dashboard stats for a user
+   * @param userId - The ID of the user to get stats for
+   * @returns Dashboard stats including last login, account creation date, and subscription status
    */
   async getDashboardStats(userId: number): Promise<DashboardStats> {
     const query: QueryConfig = {
@@ -207,20 +209,33 @@ export class UserService {
         SELECT 
           last_login as "lastLogin",
           created_at as "accountCreated",
-          subscription_status as "subscriptionStatus"
+          CASE 
+            WHEN subscription_status IS NOT NULL THEN subscription_status
+            ELSE 'active'
+          END as "subscriptionStatus"
         FROM users 
         WHERE id = $1
       `,
       values: [userId]
     };
 
-    const results = await executeQuery<DashboardStats[]>(query);
+    interface DBResponse {
+      lastLogin: Date | null;
+      accountCreated: Date;
+      subscriptionStatus: 'active' | 'inactive' | 'canceled';
+    }
+
+    const result = await executeQuery<DBResponse[]>(query);
     
-    if (!results.length) {
+    if (!result.length) {
       throw new Error('User not found');
     }
 
-    return results[0];
+    return {
+      lastLogin: result[0].lastLogin?.toISOString() || new Date().toISOString(),
+      accountCreated: result[0].accountCreated.toISOString(),
+      subscriptionStatus: result[0].subscriptionStatus
+    };
   }
 }
 

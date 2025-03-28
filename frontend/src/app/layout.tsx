@@ -50,7 +50,6 @@ export const metadata: Metadata = {
     creator: '@yourhandle',
     images: ['https://your-domain.com/twitter-image.jpg'],
   },
-  manifest: '/manifest.json',
   verification: {
     google: 'your-google-verification-code',
   },

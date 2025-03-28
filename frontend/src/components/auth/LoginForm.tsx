@@ -15,7 +15,11 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-export function LoginForm() {
+interface LoginFormProps {
+  returnTo?: string;
+}
+
+export function LoginForm({ returnTo = '/dashboard' }: LoginFormProps) {
   const { login } = useAuth();
   const router = useRouter();
   const [error, setError] = useState('');
@@ -26,7 +30,7 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      await login(data.email, data.password);
+      await login(data.email, data.password, returnTo);
     } catch (err) {
       setError('Invalid email or password');
     }

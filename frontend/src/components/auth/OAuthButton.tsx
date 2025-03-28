@@ -7,9 +7,10 @@ import { OAuthProvider } from '@/types/auth';
 interface OAuthButtonProps {
   provider: OAuthProvider;
   onClick?: () => void;
+  returnTo?: string;
 }
 
-export const OAuthButton: FC<OAuthButtonProps> = ({ provider, onClick }) => {
+export const OAuthButton: FC<OAuthButtonProps> = ({ provider, onClick, returnTo = '/dashboard' }) => {
   const config = {
     google: {
       text: 'Continue with Google',
@@ -31,7 +32,7 @@ export const OAuthButton: FC<OAuthButtonProps> = ({ provider, onClick }) => {
 
   const handleClick = () => {
     // Redirect to frontend OAuth endpoint which will then redirect to backend
-    window.location.href = `/api/auth/${provider}`;
+    window.location.href = `/api/auth/${provider}?returnTo=${encodeURIComponent(returnTo)}`;
     onClick?.();
   };
 

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 export async function POST() {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     const refreshToken = cookieStore.get('refresh_token');
 
     if (!refreshToken) {
@@ -13,7 +13,7 @@ export async function POST() {
       );
     }
 
-    const response = await fetch(`${process.env.BACKEND_URL}/auth/refresh-token`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/api/auth/refresh-token`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -27,12 +27,15 @@ export async function POST() {
       throw new Error(data.message || 'Token refresh failed');
     }
 
-    // Create new response with updated cookies
-    const resp = NextResponse.json({ message: 'Token refreshed' });
+    // Create new response with updated cookies and include user data
+    const resp = NextResponse.json({ 
+      message: 'Token refreshed',
+      user: data.user // Include user data in response
+    });
 
     // Set the new access token
     resp.cookies.set('auth_token', data.token, {
-      httpOnly: true,
+      httpOnly: false, // Not httpOnly so JavaScript can read it
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
@@ -42,7 +45,7 @@ export async function POST() {
     // Set the new refresh token if provided
     if (data.refreshToken) {
       resp.cookies.set('refresh_token', data.refreshToken, {
-        httpOnly: true,
+        httpOnly: true, // Keep refresh token httpOnly for security
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
@@ -50,8 +53,24 @@ export async function POST() {
       });
     }
 
+    // Add the user cookie if present in response
+    if (data.user) {
+      const userData = typeof data.user === 'string' 
+        ? data.user 
+        : JSON.stringify(data.user);
+        
+      resp.cookies.set('user', userData, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60, // 24 hours
+      });
+    }
+
     return resp;
   } catch (error) {
+    console.error('Refresh error:', error);
     return NextResponse.json(
       { error: 'Failed to refresh token' },
       { status: 401 }

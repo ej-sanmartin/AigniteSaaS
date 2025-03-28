@@ -2,8 +2,12 @@
 
 import { LoginForm } from '@/components/auth/LoginForm';
 import { OAuthButton } from '@/components/auth/OAuthButton';
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/dashboard';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="max-w-md w-full space-y-6 p-8 bg-white dark:bg-gray-800 
@@ -13,8 +17,8 @@ export default function LoginPage() {
         </h2>
         
         <div className="space-y-3">
-          <OAuthButton provider="google" />
-          <OAuthButton provider="linkedin" />
+          <OAuthButton provider="google" returnTo={returnTo} />
+          <OAuthButton provider="linkedin" returnTo={returnTo} />
         </div>
 
         <div className="relative">
@@ -28,7 +32,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <LoginForm />
+        <LoginForm returnTo={returnTo} />
       </div>
     </div>
   );
