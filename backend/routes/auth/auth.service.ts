@@ -43,8 +43,6 @@ export class AuthService {
    * @returns The created user
    */
   async createOAuthUser(userData: CreateOAuthUserInput): Promise<OAuthUser> {
-    console.log('createOAuthUser: Starting with data:', userData);
-    
     const query: QueryConfig = {
       text: `
         INSERT INTO users (
@@ -81,9 +79,7 @@ export class AuthService {
     };
     
     try {
-      console.log('createOAuthUser: Executing query with values:', query.values);
       const results = await executeQuery<OAuthUser[]>(query);
-      console.log('createOAuthUser: Query results:', results);
       
       if (!results.length) {
         console.error('createOAuthUser: No results returned from query');

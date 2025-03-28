@@ -20,18 +20,9 @@ export class AuthController {
     done: (error: any, user?: OAuthUser | false) => void
   ): Promise<void> {
     try {
-      console.log('handleOAuthUser: Starting with profile:', {
-        id: profile.id,
-        email: profile.emails?.[0]?.value,
-        provider,
-        fullProfile: JSON.stringify(profile, null, 2)
-      });
-
       let user = await authService.findUserByProviderId(provider, profile.id);
-      console.log('handleOAuthUser: Existing user found:', user);
 
       if (!user) {
-        console.log('handleOAuthUser: No existing user found, creating new user');
         const userData = oAuthUserSchema.parse({
           email: profile.emails?.[0]?.value,
           firstName: provider === 'google' 
@@ -43,10 +34,8 @@ export class AuthController {
           provider,
           providerId: profile.id
         });
-        console.log('handleOAuthUser: Validated user data:', userData);
 
         user = await authService.createOAuthUser(userData);
-        console.log('handleOAuthUser: New user created:', user);
       }
 
       done(null, user);
@@ -61,23 +50,13 @@ export class AuthController {
    */
   async handleOAuthCallback(req: Request, res: Response): Promise<void> {
     try {
-      console.log('Backend OAuth callback received');
-      // Use type assertion to fix the TypeScript error
       const user = req.user as OAuthUser | undefined;
       
       if (!user) {
-        console.log('No user found in request');
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Authentication failed')}`);
         return;
       }
-
-      console.log('User found:', { 
-        id: user.id, 
-        email: user.email, 
-        provider: user.provider,
-        providerId: user.providerId 
-      });
 
       // Verify user exists in database
       const dbUser = await userService.getUserById(user.id);
@@ -103,8 +82,6 @@ export class AuthController {
 
       // Remove password from user data
       const { password, ...userWithoutPassword } = user;
-
-      console.log('Generated tokens and prepared response');
 
       // Get returnTo from query params or default to dashboard
       const returnTo = req.query.returnTo as string || '/dashboard';
