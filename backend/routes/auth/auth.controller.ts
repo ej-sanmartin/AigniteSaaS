@@ -99,9 +99,9 @@ export class AuthController {
 
       console.log('Generated tokens and prepared response');
 
-      // Set content type header and return JSON response with 302 status
+      // Set content type header and return JSON response with 200 status
       res.setHeader('Content-Type', 'application/json');
-      res.status(302).json({
+      res.status(200).json({
         token: accessToken,
         refreshToken,
         user: userWithoutPassword

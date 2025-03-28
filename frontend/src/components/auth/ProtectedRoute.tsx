@@ -11,27 +11,27 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Only handle redirects if we're not loading and not authenticated
+    // Only redirect if we're not loading and not authenticated
     if (!isLoading && !isAuthenticated) {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('token');
-      const userStr = params.get('user');
-
-      // Don't redirect if we're already on the login page or if we have OAuth data
-      if (pathname !== '/login' && !token && !userStr) {
-        router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
-      }
+      router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
     }
   }, [isLoading, isAuthenticated, router, pathname]);
 
+  // Show loading state while initializing
   if (isLoading) {
     return <LoadingAuth />;
   }
 
-  // Don't redirect on error if we have OAuth data
-  if (error && !window.location.search.includes('token')) {
-    router.replace('/login');
-    return null;
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-600 max-w-2xl p-4">
+          <h2 className="text-xl font-bold mb-2">Error</h2>
+          <p className="mb-4">{error.message}</p>
+        </div>
+      </div>
+    );
   }
 
   return children;

@@ -9,70 +9,66 @@ export async function GET(
   { params }: { params: { provider: string } }
 ) {
   const { provider } = await Promise.resolve(params);
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const error = searchParams.get('error');
+
+  if (error) {
+    return NextResponse.redirect(
+      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent(error)}`
+    );
+  }
+
+  if (!code) {
+    return NextResponse.redirect(
+      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent('No authorization code received')}`
+    );
+  }
 
   try {
-    const url = new URL(request.url);
-    const code = url.searchParams.get('code');
-
-    if (!code) {
-      console.error('No authorization code received');
-      return NextResponse.redirect(
-        `${frontendUrl}/login?error=${encodeURIComponent('No authorization code received')}`
-      );
-    }
-    
-    const response = await fetch(`${backendUrl}/api/auth/${provider}/callback?code=${code}`, {
-      method: 'GET',
+    // Exchange code for tokens with backend
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendResponse = await fetch(`${backendUrl}/api/auth/${provider}/callback?code=${code}`, {
       headers: {
         'Content-Type': 'application/json',
       },
-      redirect: 'manual'
     });
 
-    // Handle redirect response from backend
-    if (response.status === 302) {
-      const location = response.headers.get('location');
-      if (location) {
-        return NextResponse.redirect(location);
-      }
+    if (!backendResponse.ok) {
+      const errorData = await backendResponse.json();
+      throw new Error(errorData.message || 'Failed to authenticate with provider');
     }
 
-    // Try to parse the response as JSON regardless of status
-    try {
-      const data = await response.json();
-      console.log('Backend response received:', { 
-        hasToken: !!data.token, 
-        hasUser: !!data.user,
-        userId: data.user?.id 
-      });
+    const data = await backendResponse.json();
+    console.log('Received OAuth data:', { 
+      hasToken: !!data.token, 
+      hasRefreshToken: !!data.refreshToken,
+      hasUser: !!data.user 
+    });
 
-      const redirectUrl = new URL(`${frontendUrl}/dashboard`);
-      redirectUrl.searchParams.set('token', data.token);
-      redirectUrl.searchParams.set('user', JSON.stringify(data.user));
-
-      return NextResponse.redirect(redirectUrl, {
-        status: 302,
-        headers: {
-          'Location': redirectUrl.toString(),
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-    } catch (parseError) {
-      // If we can't parse JSON, then it's a real error
-      const errorText = await response.text();
-      console.error('Backend OAuth callback failed:', errorText);
-      return NextResponse.redirect(
-        `${frontendUrl}/login?error=${encodeURIComponent('Authentication failed')}`
-      );
+    if (!data.token || !data.refreshToken || !data.user) {
+      throw new Error('Invalid response from authentication server');
     }
+
+    // Set tokens and user data in localStorage through a script
+    const script = `
+      <script>
+        window.localStorage.setItem('token', '${data.token}');
+        window.localStorage.setItem('refreshToken', '${data.refreshToken}');
+        window.localStorage.setItem('user', '${JSON.stringify(data.user)}');
+        window.location.href = '/dashboard';
+      </script>
+    `;
+
+    return new Response(script, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    });
   } catch (error) {
     console.error('OAuth callback error:', error);
     return NextResponse.redirect(
-      `${frontendUrl}/login?error=${encodeURIComponent(
+      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Authentication failed'
       )}`
     );
