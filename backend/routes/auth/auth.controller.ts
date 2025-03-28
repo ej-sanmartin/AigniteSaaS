@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { OAuthProfile, OAuthUser } from './auth.types';
+import { OAuthUser } from './auth.types';
 import { authService } from './auth.service';
 import { oAuthUserSchema } from './auth.validation';
 import { userService } from '../users/user.service';
@@ -7,13 +7,15 @@ import { loginSchema } from './auth.validation';
 import bcrypt from 'bcrypt';
 import { tokenService } from '../../services/token/token';
 import { TokenPayload } from './auth.types';
+import { Profile as GoogleProfile } from 'passport-google-oauth20';
+import { Profile as LinkedInProfile } from 'passport-linkedin-oauth2';
 
 export class AuthController {
   /**
    * Handles OAuth user authentication/creation
    */
   async handleOAuthUser(
-    profile: OAuthProfile,
+    profile: GoogleProfile | LinkedInProfile,
     provider: 'google' | 'linkedin',
     done: (error: any, user?: OAuthUser | false) => void
   ): Promise<void> {
@@ -21,7 +23,8 @@ export class AuthController {
       console.log('handleOAuthUser: Starting with profile:', {
         id: profile.id,
         email: profile.emails?.[0]?.value,
-        provider
+        provider,
+        fullProfile: JSON.stringify(profile, null, 2)
       });
 
       let user = await authService.findUserByProviderId(provider, profile.id);
@@ -31,8 +34,12 @@ export class AuthController {
         console.log('handleOAuthUser: No existing user found, creating new user');
         const userData = oAuthUserSchema.parse({
           email: profile.emails?.[0]?.value,
-          firstName: profile.firstName || '',
-          lastName: profile.lastName || '',
+          firstName: provider === 'google' 
+            ? (profile as GoogleProfile)._json.given_name || ''
+            : (profile as LinkedInProfile)._json.firstName || '',
+          lastName: provider === 'google'
+            ? (profile as GoogleProfile)._json.family_name || ''
+            : (profile as LinkedInProfile)._json.lastName || '',
           provider,
           providerId: profile.id
         });

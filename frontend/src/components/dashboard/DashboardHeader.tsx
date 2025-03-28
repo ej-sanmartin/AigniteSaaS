@@ -26,7 +26,11 @@ export function DashboardHeader() {
           </div>
           <div className="flex items-center space-x-4">
             <ThemeToggle />
-            <span className="text-gray-700 dark:text-gray-300">{user?.email}</span>
+            <span className="text-gray-700 dark:text-gray-300">
+              {user?.firstName && user?.lastName 
+                ? `${user.firstName} ${user.lastName}`
+                : user?.email || 'User'}
+            </span>
             <button
               onClick={handleLogout}
               className={`

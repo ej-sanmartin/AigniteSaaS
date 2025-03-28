@@ -8,9 +8,11 @@ export interface TokenPayload {
 export interface OAuthProfile {
   id: string;
   displayName: string;
-  firstName?: string;
-  lastName?: string;
   emails?: { value: string }[];
+  _json: {
+    given_name?: string;
+    family_name?: string;
+  };
 }
 
 export interface OAuthUser {

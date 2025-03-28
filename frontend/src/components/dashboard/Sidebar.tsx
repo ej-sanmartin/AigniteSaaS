@@ -113,7 +113,9 @@ export function Sidebar() {
                 </div>
                 <div className="ml-3">
                   <p className="text-base font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
-                    {user?.email || 'User'}
+                    {user?.firstName && user?.lastName 
+                      ? `${user.firstName} ${user.lastName}`
+                      : user?.email || 'User'}
                   </p>
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
                     {user?.role || 'Unknown role'}
@@ -168,7 +170,9 @@ export function Sidebar() {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
-                      {user?.email || 'User'}
+                      {user?.firstName && user?.lastName 
+                        ? `${user.firstName} ${user.lastName}`
+                        : user?.email || 'User'}
                     </p>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
                       {user?.role || 'Unknown role'}

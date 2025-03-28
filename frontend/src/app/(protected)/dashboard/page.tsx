@@ -160,7 +160,9 @@ export default function DashboardPage() {
                 <div className="mb-6">
                   <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Welcome back, {user?.firstName || user?.email?.split('@')[0] || 'User'}! Here's an overview of your account.
+                    Welcome back, {user?.firstName && user?.lastName 
+                      ? `${user.firstName} ${user.lastName}`
+                      : user?.firstName || user?.email?.split('@')[0] || 'User'}! Here's an overview of your account.
                   </p>
                 </div>
                 
