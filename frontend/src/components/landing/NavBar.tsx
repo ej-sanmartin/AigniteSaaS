@@ -58,7 +58,9 @@ export function NavBar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex-shrink-0">
-            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Your App</h1>
+            <Link href="/">
+              <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Your App</h1>
+            </Link>
           </div>
           <div className="hidden md:flex md:items-center">
             <div className="ml-10 flex items-center space-x-4">
