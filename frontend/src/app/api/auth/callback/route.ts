@@ -13,8 +13,7 @@ export async function GET(request: Request) {
     }
 
     // Create response with redirect to dashboard
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const redirectUrl = `${frontendUrl}${returnTo}`;
+    const redirectUrl = `${process.env.FRONTEND_URL}${returnTo}`;
 
     const response = NextResponse.redirect(redirectUrl, {
       status: 302, // Use 302 for temporary redirect
@@ -68,9 +67,8 @@ export async function GET(request: Request) {
 
     return response;
   } catch (error) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     return NextResponse.redirect(
-      `${frontendUrl}/login?error=${encodeURIComponent(
+      `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Authentication failed'
       )}`,
       {

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { toast } from 'react-hot-toast';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const response = await fetch(`${process.env.BACKEND_URL}/auth/signup`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/users/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,7 +20,10 @@ export async function POST(request: Request) {
     }
 
     // Create response with user data
-    const resp = NextResponse.json({ user: data.user });
+    const resp = NextResponse.json({ 
+      user: data.user,
+      message: data.message 
+    });
 
     // Set the access token
     resp.cookies.set('auth_token', data.token, {
@@ -28,7 +32,6 @@ export async function POST(request: Request) {
       sameSite: 'lax',
       path: '/',
       maxAge: 24 * 60 * 60, // 24 hours
-      // Don't set domain - let browser determine it automatically
     });
 
     // Set the refresh token
@@ -39,11 +42,10 @@ export async function POST(request: Request) {
         sameSite: 'lax',
         path: '/',
         maxAge: 7 * 24 * 60 * 60, // 7 days
-        // Don't set domain - let browser determine it automatically
       });
     }
 
-    // Add the user cookie - make sure we have valid JSON
+    // Add the user cookie
     const userData = typeof data.user === 'string' 
       ? data.user 
       : JSON.stringify(data.user);
@@ -54,13 +56,13 @@ export async function POST(request: Request) {
       sameSite: 'lax',
       path: '/',
       maxAge: 24 * 60 * 60, // 24 hours
-      // Don't set domain - let browser determine it automatically
     });
 
     return resp;
   } catch (error) {
+    console.error('Signup error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Signup failed' },
+      { error: 'Failed to create account. Please try again.' },
       { status: 400 }
     );
   }

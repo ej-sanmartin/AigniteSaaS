@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 const signupSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -66,10 +67,30 @@ export function SignupForm() {
 
   const onSubmit = async (data: SignupForm) => {
     try {
-      await signup(data.email, data.password, `${data.firstName} ${data.lastName}`);
-      router.push('/verify-email');
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName
+        }),
+        credentials: 'include'
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to create account');
+      }
+
+      // If successful, redirect to dashboard
+      router.push('/dashboard');
     } catch (err) {
-      setError('Failed to create account');
+      setError('Failed to create account. Please try again.');
     }
   };
 

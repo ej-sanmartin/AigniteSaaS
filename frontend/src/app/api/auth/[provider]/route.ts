@@ -11,18 +11,15 @@ export async function GET(
   const url = new URL(request.url);
   const returnTo = url.searchParams.get('returnTo') || '/dashboard';
 
-  // Make sure BACKEND_URL is defined
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-
   try {
     // Redirect to backend OAuth endpoint with returnTo parameter
     return NextResponse.redirect(
-      `${backendUrl}/api/auth/${provider}?returnTo=${encodeURIComponent(returnTo)}`
+      `${process.env.BACKEND_URL}/api/auth/${provider}?returnTo=${encodeURIComponent(returnTo)}`
     );
   } catch (error) {
     // Redirect to login with error message
     return NextResponse.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent(
+      `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Authentication failed'
       )}`
     );

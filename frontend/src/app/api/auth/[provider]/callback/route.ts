@@ -16,20 +16,19 @@ export async function GET(
 
   if (error) {
     return NextResponse.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent(error)}`
+      `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(error)}`
     );
   }
 
   if (!code) {
     return NextResponse.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent('No authorization code received')}`
+      `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('No authorization code received')}`
     );
   }
 
   try {
     // Exchange code for tokens with backend
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-    const backendResponse = await fetch(`${backendUrl}/api/auth/${provider}/callback?code=${code}`, {
+    const backendResponse = await fetch(`${process.env.BACKEND_URL}/api/auth/${provider}/callback?code=${code}`, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -48,7 +47,7 @@ export async function GET(
 
     // Create response with redirect to dashboard
     const response = NextResponse.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+      `${process.env.FRONTEND_URL}/dashboard`
     );
 
     // Set HTTP-only cookies for tokens

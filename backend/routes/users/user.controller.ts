@@ -5,6 +5,8 @@ import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
 import { TokenPayload } from './user.types';
 import { verifyEmailService } from '../verify_email/verify_email.service';
+import { authService } from '../auth/auth.service';
+import { tokenService } from '../../services/token/token';
 
 export class UserController {
   /**
@@ -28,9 +30,43 @@ export class UserController {
       // Send verification email
       await verifyEmailService.createVerificationToken(user.id);
 
+      // Generate tokens
+      const accessToken = authService.generateToken({
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+
+      const refreshToken = await tokenService.createRefreshToken(user.id);
+
       // Remove password from response
       const { password, ...userWithoutPassword } = user;
       
+      // Set cookies
+      res.cookie('auth_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+
+      res.cookie('refresh_token', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      res.cookie('user', JSON.stringify(userWithoutPassword), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+
       res.status(201).json({
         message: 'User created successfully. Please check your email to verify your account.',
         user: userWithoutPassword as SafeUser
