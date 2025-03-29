@@ -4,6 +4,7 @@ import { User, UpdateUserDTO, SafeUser } from './user.types';
 import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
 import { TokenPayload } from './user.types';
+import { verifyEmailService } from '../verify_email/verify_email.service';
 
 export class UserController {
   /**
@@ -20,13 +21,18 @@ export class UserController {
       const user = await userService.createUser({
         ...validatedData,
         password: hashedPassword,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName
       });
+
+      // Send verification email
+      await verifyEmailService.createVerificationToken(user.id);
 
       // Remove password from response
       const { password, ...userWithoutPassword } = user;
       
       res.status(201).json({
-        message: 'User created successfully',
+        message: 'User created successfully. Please check your email to verify your account.',
         user: userWithoutPassword as SafeUser
       });
     } catch (error) {

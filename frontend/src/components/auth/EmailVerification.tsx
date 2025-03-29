@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/utils/api';
+import { toast } from 'react-hot-toast';
 
 export function EmailVerification() {
   const searchParams = useSearchParams();
@@ -22,12 +23,14 @@ export function EmailVerification() {
       await api.post('/auth/verify-email', { token: verificationToken });
       setStatus('success');
       setMessage('Email verified successfully! Redirecting to dashboard...');
+      toast.success('Email verified successfully!');
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
     } catch (error) {
       setStatus('error');
       setMessage('Invalid or expired verification link. Please request a new one.');
+      toast.error('Failed to verify email. Please try again.');
     }
   };
 
@@ -35,8 +38,10 @@ export function EmailVerification() {
     try {
       await api.post('/auth/resend-verification');
       setMessage('Verification email sent! Please check your inbox.');
+      toast.success('Verification email sent!');
     } catch (error) {
       setMessage('Failed to send verification email. Please try again.');
+      toast.error('Failed to send verification email. Please try again.');
     }
   };
 

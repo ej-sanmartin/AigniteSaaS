@@ -9,13 +9,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const signupSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string()
+  confirmPassword: z.string().min(8, 'Password must be at least 8 characters')
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
-  path: ["confirmPassword"],
+  path: ["confirmPassword"]
 });
 
 type SignupForm = z.infer<typeof signupSchema>;
@@ -25,13 +26,47 @@ export function SignupForm() {
   const router = useRouter();
   const [error, setError] = useState('');
   
-  const { register, handleSubmit, formState: { errors } } = useForm<SignupForm>({
-    resolver: zodResolver(signupSchema),
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setError: formSetError,
+    clearErrors,
+    watch
+  } = useForm<SignupForm>({
+    resolver: zodResolver(signupSchema)
   });
+
+  const handleConfirmPasswordBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const password = watch('password');
+    const confirmPassword = e.target.value;
+    
+    if (password && confirmPassword && password !== confirmPassword) {
+      formSetError('confirmPassword', {
+        type: 'manual',
+        message: "Passwords don't match"
+      });
+    } else {
+      clearErrors('confirmPassword');
+    }
+  };
+
+  const handlePasswordBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const password = e.target.value;
+    
+    if (password && password.length < 8) {
+      formSetError('password', {
+        type: 'manual',
+        message: 'Password must be at least 8 characters'
+      });
+    } else {
+      clearErrors('password');
+    }
+  };
 
   const onSubmit = async (data: SignupForm) => {
     try {
-      await signup(data.email, data.password, data.name);
+      await signup(data.email, data.password, `${data.firstName} ${data.lastName}`);
       router.push('/verify-email');
     } catch (err) {
       setError('Failed to create account');
@@ -65,16 +100,30 @@ export function SignupForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div>
-          <label htmlFor="name" className={labelClasses}>
-            Name
+          <label htmlFor="firstName" className={labelClasses}>
+            First Name
           </label>
           <input
-            {...register('name')}
+            {...register('firstName')}
             type="text"
             className={inputClasses}
           />
-          {errors.name && (
-            <p className={errorClasses}>{errors.name.message}</p>
+          {errors.firstName && (
+            <p className={errorClasses}>{errors.firstName.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="lastName" className={labelClasses}>
+            Last Name
+          </label>
+          <input
+            {...register('lastName')}
+            type="text"
+            className={inputClasses}
+          />
+          {errors.lastName && (
+            <p className={errorClasses}>{errors.lastName.message}</p>
           )}
         </div>
 
@@ -99,6 +148,7 @@ export function SignupForm() {
           <input
             {...register('password')}
             type="password"
+            onBlur={handlePasswordBlur}
             className={inputClasses}
           />
           {errors.password && (
@@ -113,6 +163,7 @@ export function SignupForm() {
           <input
             {...register('confirmPassword')}
             type="password"
+            onBlur={handleConfirmPasswordBlur}
             className={inputClasses}
           />
           {errors.confirmPassword && (

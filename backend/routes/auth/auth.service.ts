@@ -26,6 +26,7 @@ export class AuthService {
           role,
           oauth_provider as provider,
           oauth_id as "providerId",
+          is_verified as "isVerified",
           created_at as "createdAt"
         FROM users 
         WHERE oauth_provider = $1 AND oauth_id = $2

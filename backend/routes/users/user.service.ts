@@ -15,8 +15,9 @@ export class UserService {
           password,
           first_name,
           last_name,
-          role
-        ) VALUES ($1, $2, $3, $4, $5)
+          role,
+          is_verified
+        ) VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING 
           id, 
           email, 
@@ -33,7 +34,8 @@ export class UserService {
         userData.password,
         userData.firstName || '',
         userData.lastName || '',
-        userData.role || 'user'
+        userData.role || 'user',
+        false
       ]
     };
 

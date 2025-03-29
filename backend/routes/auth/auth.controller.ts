@@ -72,16 +72,16 @@ export class AuthController {
 
       // Generate access token
       const accessToken = authService.generateToken({
-        id: typeof user.id === 'string' ? parseInt(user.id, 10) : user.id,
-        email: user.email,
-        role: user.role
+        id: typeof dbUser.id === 'string' ? parseInt(dbUser.id, 10) : dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role
       });
 
       // Generate refresh token
-      const refreshToken = await tokenService.createRefreshToken(user.id);
+      const refreshToken = await tokenService.createRefreshToken(dbUser.id);
 
       // Remove password from user data
-      const { password, ...userWithoutPassword } = user;
+      const { password, ...userWithoutPassword } = dbUser;
 
       // Get returnTo from query params or default to dashboard
       const returnTo = req.query.returnTo as string || '/dashboard';
@@ -245,7 +245,13 @@ export class AuthController {
       // Remove sensitive data
       const { password, ...userWithoutPassword } = dbUser;
 
-      res.json({ user: userWithoutPassword });
+      // Ensure isVerified is included in the response
+      const userResponse = {
+        ...userWithoutPassword,
+        isVerified: dbUser.isVerified
+      };
+
+      res.json({ user: userResponse });
     } catch (error) {
       console.error('Auth check error:', error);
       res.status(500).json({ message: 'Failed to check auth status' });
