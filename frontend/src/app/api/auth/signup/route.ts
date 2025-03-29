@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const response = await fetch(`${process.env.BACKEND_URL}/api/users/register`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,20 +20,22 @@ export async function POST(request: Request) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Signup failed');
+      return NextResponse.json(
+        { error: data.message || 'Failed to create account. Please try again.' },
+        { status: response.status }
+      );
     }
 
     // Create response with user data
     const resp = NextResponse.json({ 
       user: data.user,
       message: data.message,
-      token: data.token,
-      refreshToken: data.refreshToken
+      fromSignup: true
     });
 
     // Set the access token
-    resp.cookies.set('auth_token', data.token, {
-      httpOnly: false,
+    resp.cookies.set('token', data.token, {
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
 
     // Set the refresh token
     if (data.refreshToken) {
-      resp.cookies.set('refresh_token', data.refreshToken, {
+      resp.cookies.set('refreshToken', data.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',

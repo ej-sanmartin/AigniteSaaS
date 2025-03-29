@@ -33,6 +33,7 @@ export class UserController {
       } catch (emailError) {
         console.error('Failed to send verification email:', emailError);
         // Continue with user creation even if email fails
+        // We don't want to block the signup process
       }
 
       // Generate tokens
@@ -73,7 +74,7 @@ export class UserController {
       });
 
       res.status(201).json({
-        message: 'User created successfully. Please check your email to verify your account.',
+        message: 'User created successfully.',
         user: userWithoutPassword as SafeUser,
         token: accessToken,
         refreshToken

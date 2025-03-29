@@ -94,8 +94,7 @@ export function SignupForm() {
         throw new Error(result.error || 'Failed to create account');
       }
       
-      toast.success('Successfully signed up');
-      router.push('/dashboard');
+      router.push('/dashboard?fromSignup=true');
     } catch (err) {
       setError('Failed to create account. Please try again.');
     }
