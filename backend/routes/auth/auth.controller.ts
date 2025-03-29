@@ -53,7 +53,7 @@ export class AuthController {
       const user = req.user as OAuthUser | undefined;
       
       if (!user) {
-        res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?error=${encodeURIComponent('Authentication failed')}`);
+        res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Authentication failed')}`);
         return;
       }
 
@@ -61,7 +61,7 @@ export class AuthController {
       const dbUser = await userService.getUserById(user.id);
       if (!dbUser) {
         console.error('User not found in database after OAuth flow');
-        res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?error=${encodeURIComponent('User not found')}`);
+        res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('User not found')}`);
         return;
       }
 
@@ -88,7 +88,8 @@ export class AuthController {
       const provider = user.provider;
 
       // Redirect back to frontend with tokens and user data
-      const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/api/auth/${provider}/callback`);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const redirectUrl = new URL(`${frontendUrl}/api/auth/${provider}/callback`);
       redirectUrl.searchParams.set('token', accessToken);
       redirectUrl.searchParams.set('refreshToken', refreshToken);
       redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
@@ -97,7 +98,7 @@ export class AuthController {
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('OAuth callback error:', error);
-      res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?error=${encodeURIComponent(
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Authentication failed'
       )}`);
     }
