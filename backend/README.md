@@ -1,9 +1,9 @@
-# Backend Service
+# ⚙️ Backend Service
 
-## Overview
+## 📋 Overview
 This is the Node.js backend service that provides REST APIs and business logic implementation for the web application.
 
-## Features
+## ✨ Features
 - User authentication (JWT + OAuth)
 - Email verification
 - Stripe subscription management
@@ -13,12 +13,12 @@ This is the Node.js backend service that provides REST APIs and business logic i
 - Environment configuration
 - Type-safe development
 
-## Requirements
+## ⚙️ Requirements
 - Node.js (v18.17.0 or higher)
 - npm (v9.0.0 or higher)
 - PostgreSQL (v14 or higher)
 
-## Tech Stack
+## 🛠️ Tech Stack
 - Express.js
 - TypeScript
 - Raw SQL for database queries
@@ -27,30 +27,30 @@ This is the Node.js backend service that provides REST APIs and business logic i
 - Stripe for payments
 - Zod for validation
 
-## API Endpoints
+## 🔌 API Endpoints
 
-### Authentication
+### 🔐 Authentication
 - `POST /auth/login` - User login
 - `POST /auth/register` - User registration
 - `GET /auth/google` - Google OAuth login
 - `GET /auth/linkedin` - LinkedIn OAuth login
 
-### Users
+### 👥 Users
 - `GET /users` - Get all users
 - `GET /users/:id` - Get user by ID
 - `PUT /users/:id` - Update user
 - `DELETE /users/:id` - Delete user
 
-### Email Verification
+### ✉️ Email Verification
 - `POST /auth/verify/email` - Send verification email
 - `GET /auth/verify/:token` - Verify email token
 
-### Subscriptions
+### 💳 Subscriptions
 - `GET /subscriptions/status` - Get subscription status
 - `POST /subscriptions` - Create subscription
 - `POST /webhooks/stripe` - Handle Stripe webhooks
 
-## Installation & Setup
+## 🚀 Installation & Setup
 
 1. Install dependencies:
 ```bash
@@ -116,7 +116,7 @@ npm start
 - Test health endpoint: `curl http://localhost:3001/health`
 - Verify database connection through logs
 
-## Environment Variables
+## ⚙️ Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
@@ -136,9 +136,9 @@ npm start
 | SMTP_USER | SMTP username | Yes |
 | SMTP_PASS | SMTP password | Yes |
 
-## API Documentation
+## 📚 API Documentation
 
-### Authentication
+### 🔐 Authentication
 - `POST /api/auth/login` - User login with email/password
 - `POST /api/auth/register` - User registration
 - `GET /api/auth/google` - Google OAuth login
@@ -146,30 +146,30 @@ npm start
 - `GET /api/auth/linkedin` - LinkedIn OAuth login
 - `GET /api/auth/linkedin/callback` - LinkedIn OAuth callback
 
-### Users
+### 👥 Users
 - `GET /api/users` - Get all users (admin only)
 - `GET /api/users/:id` - Get user by ID
 - `PUT /api/users/:id` - Update user
 - `DELETE /api/users/:id` - Delete user
 
-### Email Verification
+### ✉️ Email Verification
 - `POST /api/auth/verify/email` - Send verification email
 - `GET /api/auth/verify/:token` - Verify email token
 
-### Subscriptions
+### 💳 Subscriptions
 - `GET /api/subscriptions/status` - Get subscription status
 - `POST /api/subscriptions` - Create subscription
 - `POST /api/webhooks/stripe` - Handle Stripe webhooks
 
-## Additional Notes
+## 📝 Additional Notes
 
 This README provides a comprehensive overview of the backend service, its features, requirements, tech stack, API endpoints, installation and setup instructions, environment variables, and example usage. It's designed to help developers understand the service and its capabilities, as well as to guide them through the setup and deployment process.
 
 If you have any questions or need further assistance, please don't hesitate to reach out.
 
-## Database Setup
+## 🗄️ Database Setup
 
-### Local Development
+### 💻 Local Development
 
 1. Install PostgreSQL:
 ```bash
@@ -220,7 +220,7 @@ psql -U myuser -d saas_dev -f schema.sql
 npm run migrate
 ```
 
-### Production Setup
+### 🚀 Production Setup
 
 For production, you'll typically use a connection string:
 
