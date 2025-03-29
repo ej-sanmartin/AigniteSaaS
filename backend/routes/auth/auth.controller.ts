@@ -208,8 +208,22 @@ export class AuthController {
   /**
    * Handles user logout
    */
-  async logout(_req: Request, res: Response): Promise<void> {
+  async logout(req: Request, res: Response): Promise<void> {
     try {
+      // Get user ID from the authenticated request
+      const user = req.user as TokenPayload;
+      const userId = user?.id;
+      
+      if (userId) {
+        // Revoke all refresh tokens for the user
+        await tokenService.revokeAllUserTokens(userId);
+      }
+
+      // Clear cookies
+      res.clearCookie('token');
+      res.clearCookie('refreshToken');
+      res.clearCookie('user');
+
       res.json({ message: 'Logged out successfully' });
     } catch (error) {
       console.error('Logout error:', error);
