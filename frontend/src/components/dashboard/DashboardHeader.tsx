@@ -11,7 +11,6 @@ export function DashboardHeader() {
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login');
     } catch (error) {
       console.error('Logout failed');
     }

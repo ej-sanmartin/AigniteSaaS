@@ -117,7 +117,7 @@ export const useAuthActions = () => {
       clearRefreshTimeout();
       
       toast.success('Successfully logged out');
-      router.push('/login');
+      router.push('/');
     } catch (error) {
       setError({ message: 'Logout failed. Please try again.', code: 'LOGOUT_FAILED' });
       throw error;
