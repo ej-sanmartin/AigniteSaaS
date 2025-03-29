@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { userService } from './user.service';
-import { User, UpdateUserDTO, SafeUser } from './user.types';
+import { User, UpdateUserDTO, SafeUser, AuthenticatedRequest } from './user.types';
 import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
 import { TokenPayload } from './user.types';
@@ -81,9 +81,21 @@ export class UserController {
       });
     } catch (error) {
       console.error('Error creating user:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Handle specific error codes
+      if (errorMessage === 'EMAIL_ALREADY_EXISTS') {
+        res.status(400).json({ 
+          message: 'An account with this email already exists',
+          code: 'EMAIL_ALREADY_EXISTS'
+        });
+        return;
+      }
+
+      // Handle other errors
       res.status(400).json({ 
         message: 'Error creating user',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        code: 'USER_CREATION_ERROR'
       });
     }
   }
@@ -107,7 +119,7 @@ export class UserController {
   /**
    * Handles getting a user by ID
    */
-  async getUserById(req: Request, res: Response): Promise<void> {
+  async getUserById(req: AuthenticatedRequest, res: Response): Promise<void> {
     const user = req.user as User;
     const userId = parseInt(req.params.id);
 
@@ -138,32 +150,32 @@ export class UserController {
       res.json(userDetails);
     } catch (error) {
       console.error('Error fetching user:', error);
-      res.status(500).json({ message: 'Error fetching user', error });
+      res.status(500).json({ message: 'Error fetching user', code: 'USER_FETCH_ERROR' });
     }
   }
 
   /**
    * Handles updating a user
    */
-  async updateUser(req: Request, res: Response): Promise<void> {
+  async updateUser(req: AuthenticatedRequest, res: Response): Promise<void> {
     const { id } = req.params;
     const user = req.user as User;
     const userId = user?.id;
     const updates: UpdateUserDTO = req.body;
 
     if (!userId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'Unauthorized', code: 'UNAUTHORIZED' });
       return;
     }
 
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) {
-      res.status(400).json({ message: 'Invalid user ID' });
+      res.status(400).json({ message: 'Invalid user ID', code: 'INVALID_USER_ID' });
       return;
     }
 
     if (userId !== parsedId) {
-      res.status(403).json({ message: 'Access denied' });
+      res.status(403).json({ message: 'Access denied', code: 'ACCESS_DENIED' });
       return;
     }
 
@@ -172,13 +184,13 @@ export class UserController {
       const updatedUser = await userService.updateUser(parsedId, validatedUpdates);
       
       if (!updatedUser) {
-        res.status(404).json({ message: 'User not found' });
+        res.status(404).json({ message: 'User not found', code: 'USER_NOT_FOUND' });
         return;
       }
 
       res.json(updatedUser);
     } catch (error) {
-      res.status(500).json({ message: 'Error updating user', error });
+      res.status(500).json({ message: 'Error updating user', code: 'USER_UPDATE_ERROR' });
     }
   }
 
@@ -206,7 +218,7 @@ export class UserController {
   /**
    * Handles getting dashboard stats for a user
    */
-  async getDashboardStats(req: Request, res: Response): Promise<void> {
+  async getDashboardStats(req: AuthenticatedRequest, res: Response): Promise<void> {
     const user = req.user as TokenPayload;
     
     if (!user?.id) {

@@ -91,7 +91,8 @@ export function SignupForm() {
       const result = await response.json();
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to create account');
+        setError(result.error || 'Failed to create account');
+        return;
       }
       
       router.push('/dashboard?fromSignup=true');

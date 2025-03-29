@@ -1,3 +1,6 @@
+import { Request } from 'express';
+import { User, UserRole } from './user.types';
+
 // First, let's define allowed roles
 export type UserRole = 'user' | 'admin';
 
@@ -44,4 +47,9 @@ export interface DashboardStats {
   lastLogin: string;
   accountCreated: string;
   subscriptionStatus: 'active' | 'inactive' | 'canceled';
+}
+
+// Custom type for authenticated requests
+export interface AuthenticatedRequest extends Request {
+  user?: User;
 }

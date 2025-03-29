@@ -39,13 +39,21 @@ export class UserService {
       ]
     };
 
-    const result = await executeQuery<User[]>(query);
-    
-    if (!result.length) {
-      throw new Error('Failed to create user');
-    }
+    try {
+      const result = await executeQuery<User[]>(query);
+      
+      if (!result.length) {
+        throw new Error('Failed to create user');
+      }
 
-    return result[0];
+      return result[0];
+    } catch (error: any) {
+      // Check for unique constraint violation
+      if (error.code === '23505' && error.constraint === 'users_email_key') {
+        throw new Error('EMAIL_ALREADY_EXISTS');
+      }
+      throw error;
+    }
   }
 
   /**

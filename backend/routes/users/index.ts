@@ -1,6 +1,7 @@
 import { Router, Request } from 'express';
 import { userController } from './user.controller';
 import { verifyToken } from '../../middleware/auth';
+import { AuthenticatedRequest } from './user.types';
 
 const router = Router();
 
@@ -20,19 +21,19 @@ router.get(
 router.get(
   '/dashboard-stats',
   verifyToken,
-  (req: Request, res) => userController.getDashboardStats(req, res)
+  (req: Request, res) => userController.getDashboardStats(req as AuthenticatedRequest, res)
 );
 
 router.get(
   '/:id',
   verifyToken,
-  (req: Request, res) => userController.getUserById(req, res)
+  (req: Request, res) => userController.getUserById(req as AuthenticatedRequest, res)
 );
 
 router.put(
   '/:id',
   verifyToken,
-  (req: Request, res) => userController.updateUser(req, res)
+  (req: Request, res) => userController.updateUser(req as AuthenticatedRequest, res)
 );
 
 router.delete(
