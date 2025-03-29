@@ -5,6 +5,8 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from 'react-hot-toast';
 import { ToastHandler } from '@/components/ToastHandler';
+import { NavBar } from '@/components/landing/NavBar';
+import { Footer } from '@/components/landing/Footer';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -18,10 +20,14 @@ export function RootLayoutClient({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased bg-white dark:bg-gray-900`}>
+      <body className={`${inter.className} antialiased bg-white dark:bg-gray-900 flex flex-col min-h-screen`}>
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <NavBar />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
           </AuthProvider>
         </ThemeProvider>
         <ToastHandler />
