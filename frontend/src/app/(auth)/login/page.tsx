@@ -9,7 +9,7 @@ export default function LoginPage() {
   const returnTo = searchParams.get('returnTo') || '/dashboard';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="flex-1 flex items-center justify-center pt-24 pb-16 sm:pt-32 sm:pb-24 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-md w-full space-y-6 p-8 bg-white dark:bg-gray-800 
                     rounded-lg shadow-lg dark:shadow-gray-900/30">
         <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white">
