@@ -1,6 +1,4 @@
-import { NextRequest } from 'next/server';
-import { OAuthCallbackResponse, OAuthProvider } from '@/types/auth';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
@@ -9,49 +7,35 @@ export async function GET(
   request: Request,
   { params }: { params: { provider: string } }
 ) {
-  const { provider } = await Promise.resolve(params);
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get('code');
+  const url = new URL(request.url);
+  const searchParams = url.searchParams;
+  
+  // Extract parameters from the URL
+  const token = searchParams.get('token');
+  const refreshToken = searchParams.get('refreshToken');
+  const user = searchParams.get('user');
+  const returnTo = searchParams.get('returnTo') || '/dashboard';
   const error = searchParams.get('error');
+  
+  // Get base URL
+  const baseUrl = url.origin;
 
+  // Handle error case
   if (error) {
-    return NextResponse.redirect(
-      `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(error)}`
-    );
+    return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent(error)}`);
   }
 
-  if (!code) {
-    return NextResponse.redirect(
-      `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('No authorization code received')}`
-    );
+  // Validate required parameters
+  if (!token || !refreshToken || !user) {
+    return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent('Invalid authentication response')}`);
   }
 
   try {
-    // Exchange code for tokens with backend
-    const backendResponse = await fetch(`${process.env.BACKEND_URL}/api/auth/${provider}/callback?code=${code}`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!backendResponse.ok) {
-      const errorData = await backendResponse.json();
-      throw new Error(errorData.message || 'Failed to authenticate with provider');
-    }
-
-    const data = await backendResponse.json();
-
-    if (!data.token || !data.refreshToken || !data.user) {
-      throw new Error('Invalid response from authentication server');
-    }
-
-    // Create response with redirect to dashboard
-    const response = NextResponse.redirect(
-      `${process.env.FRONTEND_URL}/dashboard`
-    );
-
-    // Set HTTP-only cookies for tokens
-    response.cookies.set('token', data.token, {
+    // Create a new response with the redirect
+    const response = NextResponse.redirect(`${baseUrl}${returnTo}`);
+    
+    // Set cookies on the response object
+    response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -59,7 +43,7 @@ export async function GET(
       maxAge: 24 * 60 * 60 // 24 hours
     });
 
-    response.cookies.set('refreshToken', data.refreshToken, {
+    response.cookies.set('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -67,20 +51,16 @@ export async function GET(
       maxAge: 7 * 24 * 60 * 60 // 7 days
     });
 
-    // Set user data in a non-HTTOnly cookie for client-side access
-    response.cookies.set('user', JSON.stringify(data.user), {
+    response.cookies.set('user', user, {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 24 * 60 * 60 // 24 hours
     });
-
+    
+    // Return the response with cookies
     return response;
   } catch (error) {
-    return NextResponse.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=${encodeURIComponent(
-        error instanceof Error ? error.message : 'Authentication failed'
-      )}`
-    );
+    return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent('Authentication failed')}`);
   }
 } 

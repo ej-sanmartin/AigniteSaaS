@@ -18,8 +18,8 @@ export const verifyToken = (
     token = authHeader.split(' ')[1];
   } 
   // If no Authorization header, try cookies
-  else if (req.cookies && req.cookies.auth_token) {
-    token = req.cookies.auth_token;
+  else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
   }
   
   if (!token) {

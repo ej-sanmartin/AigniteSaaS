@@ -27,8 +27,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const authToken = request.cookies.get('auth_token');
-  const refreshToken = request.cookies.get('refresh_token');
+  const authToken = request.cookies.get('token');
+  const refreshToken = request.cookies.get('refreshToken');
   const userCookie = request.cookies.get('user');
   
   // Check if the path is protected
@@ -42,8 +42,8 @@ export function middleware(request: NextRequest) {
   );
 
   // Check for tokens in cookies or URL parameters
-  const hasToken = authToken || request.nextUrl.searchParams.has('auth_token');
-  const hasRefreshToken = refreshToken || request.nextUrl.searchParams.has('refresh_token');
+  const hasToken = authToken || request.nextUrl.searchParams.has('token');
+  const hasRefreshToken = refreshToken || request.nextUrl.searchParams.has('refreshToken');
 
   // If the path is protected and there's no token, redirect to login
   if (isProtectedPath && !hasToken && !hasRefreshToken) {

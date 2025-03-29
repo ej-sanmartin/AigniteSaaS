@@ -75,12 +75,14 @@ export const useAuthEffects = () => {
     // and if we haven't already set it up
     if (user && !isSetupComplete.current && !isRefreshing.current) {
       isSetupComplete.current = true;
+      // Start refresh immediately
       scheduleTokenRefresh();
     }
 
     // If user is logged out, reset the setup flag
     if (!user) {
       isSetupComplete.current = false;
+      clearRefreshTimeout();
     }
 
     // Cleanup on unmount

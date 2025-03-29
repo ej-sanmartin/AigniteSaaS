@@ -17,9 +17,10 @@ api.interceptors.request.use(
   (config) => {
     try {
       // Get auth token from cookie
-      const token = Cookies.get('auth_token');
+      const token = Cookies.get('token');
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        // Ensure the token is properly formatted
+        config.headers.Authorization = `Bearer ${token.trim()}`;
       }
     } catch (error) {
       console.error('Error setting Authorization header:', error);
@@ -36,10 +37,10 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // Check if we need to refresh the token
-    // Either we get a 401 or the auth_token cookie is missing but refresh_token exists
+    // Either we get a 401 or the token cookie is missing but refreshToken exists
     const needsRefresh = 
       (error.response?.status === 401 && !originalRequest._retry) ||
-      (!Cookies.get('auth_token') && Cookies.get('refresh_token') && !originalRequest._retry);
+      (!Cookies.get('token') && Cookies.get('refreshToken') && !originalRequest._retry);
     
     if (needsRefresh) {
       originalRequest._retry = true;
@@ -47,12 +48,14 @@ api.interceptors.response.use(
       try {
         console.log('Attempting to refresh token');
         // Try to refresh token using the refresh endpoint
-        const { data } = await api.post('/auth/refresh');
+        const { data } = await api.post('/auth/refresh', {
+          refreshToken: Cookies.get('refreshToken')
+        });
 
         if (data.token) {
           console.log('Got new token from refresh');
           // Update auth token if returned
-          Cookies.set('auth_token', data.token, {
+          Cookies.set('token', data.token, {
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             path: '/',
@@ -78,7 +81,7 @@ api.interceptors.response.use(
         // Don't use window.location.href which can cause cookie issues
         // Just remove user cookie - let the auth context handle the redirect
         Cookies.remove('user');
-        // Don't remove auth_token here as it can cause flickering issues
+        // Don't remove token here as it can cause flickering issues
         return Promise.reject(refreshError);
       }
     }

@@ -27,8 +27,13 @@ export class UserController {
         lastName: validatedData.lastName
       });
 
-      // Send verification email
-      await verifyEmailService.createVerificationToken(user.id);
+      // Try to send verification email, but don't block if it fails
+      try {
+        await verifyEmailService.createVerificationToken(user.id);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // Continue with user creation even if email fails
+      }
 
       // Generate tokens
       const accessToken = authService.generateToken({
@@ -43,7 +48,7 @@ export class UserController {
       const { password, ...userWithoutPassword } = user;
       
       // Set cookies
-      res.cookie('auth_token', accessToken, {
+      res.cookie('token', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -51,7 +56,7 @@ export class UserController {
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
       });
 
-      res.cookie('refresh_token', refreshToken, {
+      res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -69,7 +74,9 @@ export class UserController {
 
       res.status(201).json({
         message: 'User created successfully. Please check your email to verify your account.',
-        user: userWithoutPassword as SafeUser
+        user: userWithoutPassword as SafeUser,
+        token: accessToken,
+        refreshToken
       });
     } catch (error) {
       console.error('Error creating user:', error);

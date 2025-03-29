@@ -90,7 +90,7 @@ export default function DashboardPage() {
           setStats(result.data);
         } catch (apiError) {
           // Check if we still have auth cookies - avoid redirecting if our session is valid
-          if (Cookies.get('auth_token') || Cookies.get('refresh_token')) {
+          if (Cookies.get('token') || Cookies.get('refreshToken')) {
             // Mock data for demonstration or when API fails
             const mockData: DashboardStats = {
               lastLogin: new Date().toISOString(),

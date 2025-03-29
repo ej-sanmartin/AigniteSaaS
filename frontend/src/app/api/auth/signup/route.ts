@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { toast } from 'react-hot-toast';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const response = await fetch(`${process.env.BACKEND_URL}/users/register`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/api/users/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        email: body.email,
+        password: body.password,
+        firstName: body.firstName,
+        lastName: body.lastName
+      }),
     });
 
     const data = await response.json();
@@ -22,7 +26,9 @@ export async function POST(request: Request) {
     // Create response with user data
     const resp = NextResponse.json({ 
       user: data.user,
-      message: data.message 
+      message: data.message,
+      token: data.token,
+      refreshToken: data.refreshToken
     });
 
     // Set the access token

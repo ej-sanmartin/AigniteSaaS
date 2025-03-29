@@ -3,23 +3,21 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingAuth } from './LoadingAuth';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoading, isAuthenticated, error } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    // Only redirect if we're not loading and not authenticated
-    if (!isLoading && !isAuthenticated) {
-      router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
-    }
-  }, [isLoading, isAuthenticated, router, pathname]);
-
   // Show loading state while initializing
   if (isLoading) {
     return <LoadingAuth />;
+  }
+
+  // Only redirect if we're sure the user isn't authenticated
+  if (!isLoading && !isAuthenticated) {
+    router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
+    return null;
   }
 
   // Show error state if there's an error

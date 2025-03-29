@@ -6,7 +6,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   error: AuthError | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
+  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<boolean>;
   clearError: () => void;

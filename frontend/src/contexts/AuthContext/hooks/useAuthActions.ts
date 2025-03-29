@@ -25,7 +25,7 @@ export const useAuthActions = () => {
       const { data } = await api.post('/auth/login', { email, password });
       
       if (data.token) {
-        Cookies.set('auth_token', data.token, {
+        Cookies.set('token', data.token, {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           expires: 1 // 1 day
@@ -33,7 +33,7 @@ export const useAuthActions = () => {
       }
       
       if (data.refreshToken) {
-        Cookies.set('refresh_token', data.refreshToken, {
+        Cookies.set('refreshToken', data.refreshToken, {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           expires: 7 // 7 days
@@ -61,14 +61,14 @@ export const useAuthActions = () => {
     }
   }, [setUser, setIsLoading, setError, clearError, scheduleTokenRefresh, router]);
 
-  const signup = useCallback(async (email: string, password: string, name: string) => {
+  const signup = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
     try {
       setIsLoading(true);
       clearError();
-      const { data } = await api.post('/auth/signup', { email, password, name });
+      const { data } = await api.post('/auth/signup', { email, password, firstName, lastName });
       
       if (data.token) {
-        Cookies.set('auth_token', data.token, {
+        Cookies.set('token', data.token, {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           expires: 1 // 1 day
@@ -76,7 +76,7 @@ export const useAuthActions = () => {
       }
       
       if (data.refreshToken) {
-        Cookies.set('refresh_token', data.refreshToken, {
+        Cookies.set('refreshToken', data.refreshToken, {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           expires: 7 // 7 days
@@ -94,13 +94,14 @@ export const useAuthActions = () => {
       setUser(data.user);
       scheduleTokenRefresh();
       toast.success('Successfully signed up');
+      router.push('/dashboard');
     } catch (error) {
       setError({ message: 'Signup failed. Please try again.', code: 'SIGNUP_FAILED' });
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setIsLoading, setError, clearError, scheduleTokenRefresh]);
+  }, [setUser, setIsLoading, setError, clearError, scheduleTokenRefresh, router]);
 
   const logout = useCallback(async () => {
     try {
@@ -108,10 +109,9 @@ export const useAuthActions = () => {
       clearError();
       
       await api.post('/auth/logout');
-      Cookies.remove('auth_token');
-      Cookies.remove('refresh_token');
+      Cookies.remove('token');
+      Cookies.remove('refreshToken');
       Cookies.remove('user');
-      delete api.defaults.headers.common['Authorization'];
       
       setUser(null);
       clearRefreshTimeout();
@@ -119,7 +119,8 @@ export const useAuthActions = () => {
       toast.success('Successfully logged out');
       router.push('/login');
     } catch (error) {
-      setError({ message: 'Failed to logout', code: 'LOGOUT_FAILED' });
+      setError({ message: 'Logout failed. Please try again.', code: 'LOGOUT_FAILED' });
+      throw error;
     } finally {
       setIsLoading(false);
     }

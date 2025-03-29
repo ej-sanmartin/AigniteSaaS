@@ -53,7 +53,7 @@ export class AuthController {
       const user = req.user as OAuthUser | undefined;
       
       if (!user) {
-        res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Authentication failed')}`);
+        res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?error=${encodeURIComponent('Authentication failed')}`);
         return;
       }
 
@@ -61,7 +61,7 @@ export class AuthController {
       const dbUser = await userService.getUserById(user.id);
       if (!dbUser) {
         console.error('User not found in database after OAuth flow');
-        res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('User not found')}`);
+        res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?error=${encodeURIComponent('User not found')}`);
         return;
       }
 
@@ -84,17 +84,20 @@ export class AuthController {
       // Get returnTo from query params or default to dashboard
       const returnTo = req.query.returnTo as string || '/dashboard';
 
+      // Get provider from user object
+      const provider = user.provider;
+
       // Redirect back to frontend with tokens and user data
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/api/auth/callback`);
-      redirectUrl.searchParams.set('auth_token', accessToken);
-      redirectUrl.searchParams.set('refresh_token', refreshToken);
+      const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/api/auth/${provider}/callback`);
+      redirectUrl.searchParams.set('token', accessToken);
+      redirectUrl.searchParams.set('refreshToken', refreshToken);
       redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
       redirectUrl.searchParams.set('returnTo', returnTo);
 
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('OAuth callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
+      res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Authentication failed'
       )}`);
     }

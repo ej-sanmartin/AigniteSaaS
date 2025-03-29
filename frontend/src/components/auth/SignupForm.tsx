@@ -9,12 +9,19 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+const PASSWORD_ERROR_MESSAGE = 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character';
+
 const signupSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string().min(8, 'Password must be at least 8 characters')
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(PASSWORD_REGEX, PASSWORD_ERROR_MESSAGE),
+  confirmPassword: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(PASSWORD_REGEX, PASSWORD_ERROR_MESSAGE)
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"]
@@ -80,14 +87,14 @@ export function SignupForm() {
         }),
         credentials: 'include'
       });
-
+      
       const result = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to create account');
+        throw new Error(result.error || 'Failed to create account');
       }
-
-      // If successful, redirect to dashboard
+      
+      toast.success('Successfully signed up');
       router.push('/dashboard');
     } catch (err) {
       setError('Failed to create account. Please try again.');
