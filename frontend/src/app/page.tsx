@@ -6,7 +6,6 @@ import FeaturesSection from '@/components/landing/FeaturesSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { CTASection } from '@/components/landing/CTASection';
 import { FAQSection } from '@/components/landing/FAQSection';
-import { Footer } from '@/components/landing/Footer';
 import Script from 'next/script';
 
 export default function LandingPage() {
@@ -78,7 +77,6 @@ export default function LandingPage() {
             <FAQSection />
           </section>
         </main>
-        <Footer />
       </div>
     </>
   );
