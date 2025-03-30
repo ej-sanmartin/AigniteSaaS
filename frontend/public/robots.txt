@@ -8,8 +8,9 @@ Allow: /signup
 Allow: /about
 Allow: /privacy
 Allow: /terms
+Allow: /llms.txt
 Disallow: /dashboard
 Disallow: /settings
 Disallow: /verify-email
 
-Sitemap: https://yourdomain.com/sitemap.xml 
+Sitemap: https://your-domain.com/sitemap.xml 

@@ -1,0 +1,11 @@
+# LLMs.txt - A simple guide for LLMs and developers
+# This file lists all public pages that don't require authentication.
+# Feel free to add more public pages as they are created.
+
+# Landing Page Sections
+/ - Main landing page
+/#features - Features section
+/#pricing - Pricing section
+/#faq - FAQ section
+
+# Note: All other routes require authentication and are not listed here. 
