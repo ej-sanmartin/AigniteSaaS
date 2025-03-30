@@ -19,26 +19,10 @@ export class AuthController {
     done: (error: any, user?: OAuthUser | false) => void
   ): Promise<void> {
     try {
-      console.log('=== handleOAuthUser START ===');
-      console.log(`Handling ${provider} OAuth user:`, {
-        email: profile.emails?.[0]?.value,
-        provider,
-        firstName: provider === 'google' 
-          ? (profile as GoogleProfile)._json.given_name 
-          : (profile as LinkedInProfile).given_name,
-        lastName: provider === 'google'
-          ? (profile as GoogleProfile)._json.family_name 
-          : (profile as LinkedInProfile).family_name,
-        id: profile.id,
-        sub: (profile as LinkedInProfile).sub
-      });
-
       // Find user by email instead of provider ID
       const user = await userService.getUserByEmail(profile.emails?.[0]?.value || '');
-      console.log('Existing user lookup result:', user ? 'Found' : 'Not found');
 
       if (!user) {
-        console.log(`Creating new ${provider} user`);
         const userData = oAuthUserSchema.parse({
           email: profile.emails?.[0]?.value,
           firstName: provider === 'google' 
@@ -51,17 +35,14 @@ export class AuthController {
           providerId: profile.id || (profile as LinkedInProfile).sub || ''
         });
 
-        console.log('Creating user with data:', userData);
         try {
           const newUser = await authService.createOAuthUser(userData);
-          console.log(`Created new ${provider} user:`, { id: newUser.id, email: newUser.email });
           done(null, newUser);
         } catch (createError) {
           console.error('Error creating OAuth user:', createError);
           done(createError);
         }
       } else {
-        console.log(`Found existing ${provider} user:`, { id: user.id, email: user.email });
         // Transform existing user to match OAuthUser type
         const oauthUser: OAuthUser = {
           ...user,
@@ -70,7 +51,6 @@ export class AuthController {
         };
         done(null, oauthUser);
       }
-      console.log('=== handleOAuthUser END ===');
     } catch (error) {
       console.error(`Error in handleOAuthUser for ${provider}:`, error);
       if (error instanceof Error) {
@@ -138,7 +118,6 @@ export class AuthController {
       redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
       redirectUrl.searchParams.set('returnTo', returnTo);
 
-      console.log(`Redirecting to frontend after ${provider} OAuth:`, redirectUrl.toString());
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('OAuth callback error:', error);
