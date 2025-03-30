@@ -1,12 +1,17 @@
 import express from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as LinkedInStrategy } from 'passport-linkedin-oauth2';
+import { Strategy as OpenIDConnectStrategy, Profile as OpenIDProfile } from 'passport-openidconnect';
 import config from '../../config/auth';
 import { authController } from './auth.controller';
 import { authLimiter } from '../../middleware/rateLimiter';
 import verifyEmailRouter from '../verify_email';
 import { Router } from 'express';
+import { LinkedInProfile } from './auth.types';
+import axios from 'axios';
+import { userService } from '../users/user.service';
+import { authService } from './auth.service';
+import { tokenService } from '../../services/token/token';
 
 const router = Router();
 
@@ -31,14 +36,55 @@ const setupPassportStrategies = (): void => {
     config.oauth.linkedin.clientId &&
     config.oauth.linkedin.clientSecret
   ) {
-    passport.use(new LinkedInStrategy({
+    passport.use(new OpenIDConnectStrategy(
+      {
+      issuer: 'https://www.linkedin.com',
+      authorizationURL: 'https://www.linkedin.com/oauth/v2/authorization',
+      tokenURL: 'https://www.linkedin.com/oauth/v2/accessToken',
+      userInfoURL: 'https://api.linkedin.com/v2/userinfo',
       clientID: config.oauth.linkedin.clientId,
       clientSecret: config.oauth.linkedin.clientSecret,
       callbackURL: config.oauth.linkedin.callbackURL,
-      scope: ['r_emailaddress', 'r_liteprofile']
-    }, async (_accessToken, _refreshToken, profile, done) => {
-      authController.handleOAuthUser(profile, 'linkedin', done);
-    }));
+        scope: ['openid', 'profile', 'email'],
+        passReqToCallback: true,
+        proxy: true,
+        skipUserProfile: false
+      },
+      async (_issuer: string, profile: OpenIDProfile, done: (error: any, user?: any) => void) => {
+        try {
+          if (!profile || !profile.id) {
+            return done(new Error('LinkedIn returned empty or invalid profile'));
+          }
+
+          const transformedProfile: LinkedInProfile = {
+            id: profile.id,
+            emails: profile.emails || [],
+            _json: {
+              firstName: profile.name?.givenName || '',
+              lastName: profile.name?.familyName || '',
+              email: profile.emails?.[0]?.value || ''
+            },
+            displayName: profile.displayName || '',
+            name: profile.name || { givenName: '', familyName: '' },
+            photos: profile.photos || [],
+            provider: 'linkedin',
+            sub: profile.id,
+            email: profile.emails?.[0]?.value || '',
+            given_name: profile.name?.givenName || '',
+            family_name: profile.name?.familyName || '',
+            picture: profile.photos?.[0]?.value || ''
+          };
+
+          if (!transformedProfile.email) {
+            return done(new Error('LinkedIn profile missing email'));
+          }
+
+          authController.handleOAuthUser(transformedProfile, 'linkedin', done);
+        } catch (error) {
+          done(error);
+        }
+      }
+    ));
   } else {
     console.warn('LinkedIn OAuth credentials not configured');
   }
@@ -86,16 +132,159 @@ router.get('/linkedin',
     next();
   },
   authLimiter,
-  passport.authenticate('linkedin')
+  passport.authenticate('openidconnect', {
+    session: false,
+    scope: ['openid', 'profile', 'email']
+  } as any)
 );
 
 router.get('/linkedin/callback',
   authLimiter,
-  passport.authenticate('linkedin', { 
-    session: false, 
-    failureRedirect: '/login' 
-  }),
-  authController.handleOAuthCallback
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const { code } = req.query;
+      
+      if (!code) {
+        console.error('No authorization code provided');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+      }
+      
+      const tokenResponse = await axios.post(
+        'https://www.linkedin.com/oauth/v2/accessToken',
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: code as string,
+          redirect_uri: config.oauth.linkedin.callbackURL,
+          client_id: config.oauth.linkedin.clientId || '',
+          client_secret: config.oauth.linkedin.clientSecret || ''
+        }).toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      const { access_token } = tokenResponse.data;
+      
+      if (!access_token) {
+        console.error('No access token received');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
+      }
+      
+      const userInfoResponse = await axios.get('https://api.linkedin.com/v2/userinfo', {
+        headers: {
+          Authorization: `Bearer ${access_token}`
+        }
+      });
+      
+      const userInfo = userInfoResponse.data;
+      
+      if (!userInfo || !userInfo.sub) {
+        console.error('Invalid user info received');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_user_info`);
+      }
+      
+      let user = await userService.getUserByEmail(userInfo.email);
+      
+      if (!user) {
+        await authService.createOAuthUser({
+          email: userInfo.email,
+          firstName: userInfo.given_name || '',
+          lastName: userInfo.family_name || '',
+          provider: 'linkedin',
+          providerId: userInfo.sub,
+          role: 'user'
+        });
+        user = await userService.getUserByEmail(userInfo.email);
+      }
+      
+      if (!user) {
+        console.error('Failed to create or find user');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=user_creation_failed`);
+      }
+      
+      await userService.updateLastLogin(user.id);
+      const accessToken = authService.generateToken({
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+      const refreshToken = await tokenService.createRefreshToken(user.id);
+      
+      const { password, ...userWithoutPassword } = user;
+      
+      const frontendUrl = process.env.FRONTEND_URL;
+      if (!frontendUrl) {
+        throw new Error('Frontend URL not configured');
+      }
+      
+      const redirectUrl = new URL(`${frontendUrl}/api/auth/callback`);
+      redirectUrl.searchParams.set('auth', 'success');
+      redirectUrl.searchParams.set('auth_token', accessToken);
+      redirectUrl.searchParams.set('refresh_token', refreshToken);
+      redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
+      redirectUrl.searchParams.set('returnTo', req.query.returnTo as string || '/dashboard');
+      
+      res.redirect(redirectUrl.toString());
+      
+    } catch (error) {
+      console.error('LinkedIn callback error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+    }
+  }
+);
+
+// Add verification route
+router.get('/linkedin/callback/verify',
+  authLimiter,
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, returnTo } = req.query;
+      
+      if (!email) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
+      }
+      
+      // Get user from database
+      const user = await userService.getUserByEmail(email as string);
+      if (!user) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=user_not_found`);
+      }
+      
+      // Update last login
+      await userService.updateLastLogin(user.id);
+      
+      // Generate tokens
+      const accessToken = authService.generateToken({
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+      
+      const refreshToken = await tokenService.createRefreshToken(user.id);
+      
+      // Remove password from user data
+      const { password, ...userWithoutPassword } = user;
+      
+      // Redirect to frontend
+      const frontendUrl = process.env.FRONTEND_URL;
+      const redirectUrl = new URL(`${frontendUrl}/api/auth/linkedin/callback`);
+      redirectUrl.searchParams.set('token', accessToken);
+      redirectUrl.searchParams.set('refreshToken', refreshToken);
+      redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
+      redirectUrl.searchParams.set('returnTo', returnTo as string || '/dashboard');
+      
+      console.log('Redirecting to frontend:', redirectUrl.toString());
+      res.redirect(redirectUrl.toString());
+      
+    } catch (error) {
+      console.error('Verification error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+    }
+  }
 );
 
 router.post('/login', 

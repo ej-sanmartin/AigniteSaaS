@@ -5,7 +5,10 @@ import passport from 'passport';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import session from 'express-session';
+import pgSession from 'connect-pg-simple';
 import { apiLimiter } from './middleware/rateLimiter';
+import pool from './config/database';
 import authRoutes from './routes/auth/index';
 import verifyEmailRoutes from './routes/verify_email/index';
 import userRoutes from './routes/users/index';
@@ -46,7 +49,25 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Session configuration
+app.use(session({
+  store: new (pgSession(session))({
+    pool,
+    tableName: 'session'
+  }),
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
 app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting

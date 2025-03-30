@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { Profile as OpenIDProfile } from 'passport-openidconnect';
 
 export interface AuthenticatedRequest extends Request {
   user?: TokenPayload;
@@ -28,4 +29,27 @@ export interface OAuthProfile {
   firstName?: string;
   lastName?: string;
   emails?: { value: string }[];
+}
+
+export interface LinkedInProfile extends OpenIDProfile {
+  sub: string;
+  email: string;
+  given_name: string;
+  family_name: string;
+  picture: string;
+  _json: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  _raw?: string;
+  provider: string;
+  id: string;
+  emails: { value: string }[];
+  displayName: string;
+  name: {
+    familyName: string;
+    givenName: string;
+  };
+  photos: { value: string }[];
 } 

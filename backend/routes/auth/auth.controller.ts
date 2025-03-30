@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { OAuthUser } from './auth.types';
+import { OAuthUser, LinkedInProfile } from './auth.types';
 import { authService } from './auth.service';
 import { oAuthUserSchema } from './auth.validation';
 import { userService } from '../users/user.service';
@@ -8,7 +8,6 @@ import bcrypt from 'bcrypt';
 import { tokenService } from '../../services/token/token';
 import { TokenPayload } from './auth.types';
 import { Profile as GoogleProfile } from 'passport-google-oauth20';
-import { Profile as LinkedInProfile } from 'passport-linkedin-oauth2';
 
 export class AuthController {
   /**
@@ -20,27 +19,66 @@ export class AuthController {
     done: (error: any, user?: OAuthUser | false) => void
   ): Promise<void> {
     try {
-      let user = await authService.findUserByProviderId(provider, profile.id);
+      console.log('=== handleOAuthUser START ===');
+      console.log(`Handling ${provider} OAuth user:`, {
+        email: profile.emails?.[0]?.value,
+        provider,
+        firstName: provider === 'google' 
+          ? (profile as GoogleProfile)._json.given_name 
+          : (profile as LinkedInProfile).given_name,
+        lastName: provider === 'google'
+          ? (profile as GoogleProfile)._json.family_name 
+          : (profile as LinkedInProfile).family_name,
+        id: profile.id,
+        sub: (profile as LinkedInProfile).sub
+      });
+
+      // Find user by email instead of provider ID
+      const user = await userService.getUserByEmail(profile.emails?.[0]?.value || '');
+      console.log('Existing user lookup result:', user ? 'Found' : 'Not found');
 
       if (!user) {
+        console.log(`Creating new ${provider} user`);
         const userData = oAuthUserSchema.parse({
           email: profile.emails?.[0]?.value,
           firstName: provider === 'google' 
             ? (profile as GoogleProfile)._json.given_name || ''
-            : (profile as LinkedInProfile)._json.firstName || '',
+            : (profile as LinkedInProfile).given_name || '',
           lastName: provider === 'google'
             ? (profile as GoogleProfile)._json.family_name || ''
-            : (profile as LinkedInProfile)._json.lastName || '',
+            : (profile as LinkedInProfile).family_name || '',
           provider,
-          providerId: profile.id
+          providerId: profile.id || (profile as LinkedInProfile).sub || ''
         });
 
-        user = await authService.createOAuthUser(userData);
+        console.log('Creating user with data:', userData);
+        try {
+          const newUser = await authService.createOAuthUser(userData);
+          console.log(`Created new ${provider} user:`, { id: newUser.id, email: newUser.email });
+          done(null, newUser);
+        } catch (createError) {
+          console.error('Error creating OAuth user:', createError);
+          done(createError);
+        }
+      } else {
+        console.log(`Found existing ${provider} user:`, { id: user.id, email: user.email });
+        // Transform existing user to match OAuthUser type
+        const oauthUser: OAuthUser = {
+          ...user,
+          provider,
+          providerId: profile.id || (profile as LinkedInProfile).sub || ''
+        };
+        done(null, oauthUser);
       }
-
-      done(null, user);
+      console.log('=== handleOAuthUser END ===');
     } catch (error) {
-      console.error('Error in handleOAuthUser:', error);
+      console.error(`Error in handleOAuthUser for ${provider}:`, error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       done(error);
     }
   }
@@ -51,26 +89,30 @@ export class AuthController {
   async handleOAuthCallback(req: Request, res: Response): Promise<void> {
     try {
       const user = req.user as OAuthUser | undefined;
+      const provider = req.params.provider || 'unknown';
       
       if (!user) {
-        res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Authentication failed')}`);
+        console.error(`No user found in ${provider} OAuth callback`);
+        const errorUrl = `${process.env.FRONTEND_URL}/login`;
+        res.redirect(`${errorUrl}?error=${encodeURIComponent('Authentication failed')}`);
         return;
       }
 
-      // Verify user exists in database
-      const dbUser = await userService.getUserById(user.id);
+      // Verify user exists in database by email instead of ID
+      const dbUser = await userService.getUserByEmail(user.email);
       if (!dbUser) {
-        console.error('User not found in database after OAuth flow');
-        res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('User not found')}`);
+        console.error(`User not found in database after ${provider} OAuth flow`);
+        const errorUrl = `${process.env.FRONTEND_URL}/login`;
+        res.redirect(`${errorUrl}?error=${encodeURIComponent('User not found')}`);
         return;
       }
 
       // Update last login timestamp
-      await userService.updateLastLogin(user.id);
+      await userService.updateLastLogin(dbUser.id);
 
       // Generate access token
       const accessToken = authService.generateToken({
-        id: typeof dbUser.id === 'string' ? parseInt(dbUser.id, 10) : dbUser.id,
+        id: dbUser.id,
         email: dbUser.email,
         role: dbUser.role
       });
@@ -84,23 +126,25 @@ export class AuthController {
       // Get returnTo from query params or default to dashboard
       const returnTo = req.query.returnTo as string || '/dashboard';
 
-      // Get provider from user object
-      const provider = user.provider;
-
       // Redirect back to frontend with tokens and user data
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL;
+      if (!frontendUrl) {
+        throw new Error('Frontend URL not configured');
+      }
+
       const redirectUrl = new URL(`${frontendUrl}/api/auth/${provider}/callback`);
       redirectUrl.searchParams.set('token', accessToken);
       redirectUrl.searchParams.set('refreshToken', refreshToken);
       redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
       redirectUrl.searchParams.set('returnTo', returnTo);
 
+      console.log(`Redirecting to frontend after ${provider} OAuth:`, redirectUrl.toString());
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('OAuth callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
-        error instanceof Error ? error.message : 'Authentication failed'
-      )}`);
+      const errorUrl = `${process.env.FRONTEND_URL}/login`;
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      res.redirect(`${errorUrl}?error=${encodeURIComponent(errorMessage)}`);
     }
   }
 

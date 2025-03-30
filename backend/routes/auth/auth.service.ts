@@ -71,9 +71,9 @@ export class AuthService {
         userData.email,
         userData.firstName,
         userData.lastName,
-        userData.provider,
-        '', // empty password for OAuth users
-        userData.providerId,
+        userData.provider.toLowerCase(), // Ensure lowercase to match constraint
+        '', // empty password for OAuth users (required by constraint)
+        userData.providerId || userData.email, // Use email as fallback for oauth_id
         true, // OAuth users are pre-verified
         userData.role || 'user' // Default to 'user' role if not specified
       ]

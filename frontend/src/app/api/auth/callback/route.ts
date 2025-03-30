@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  
   try {
-    const url = new URL(request.url);
     const token = url.searchParams.get('auth_token');
     const refreshToken = url.searchParams.get('refresh_token');
     const user = url.searchParams.get('user');
@@ -13,62 +14,41 @@ export async function GET(request: Request) {
     }
 
     // Create response with redirect to dashboard
-    const redirectUrl = `${process.env.FRONTEND_URL}${returnTo}`;
-
-    const response = NextResponse.redirect(redirectUrl, {
-      status: 302, // Use 302 for temporary redirect
+    const response = NextResponse.redirect(`${url.origin}${returnTo}`, {
+      status: 302,
     });
 
-    // Set auth_token cookie that can be read by JavaScript
-    // This is needed for the Authorization header
-    response.cookies.set('auth_token', token, {
-      httpOnly: false, // Not httpOnly so JavaScript can read it
+    // Set auth_token cookie
+    response.cookies.set('token', token, {
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      // Don't set domain - let browser determine it automatically
+      maxAge: 24 * 60 * 60 // 24 hours
     });
 
-    response.cookies.set('refresh_token', refreshToken, {
-      httpOnly: true, // Keep refresh token httpOnly for security
+    // Set refresh token cookie
+    response.cookies.set('refreshToken', refreshToken, {
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      // Don't set domain - let browser determine it automatically
+      maxAge: 7 * 24 * 60 * 60 // 7 days
     });
 
-    // Make sure user data is properly JSON stringified
-    let userData = user;
-    try {
-      // If it's already a JSON string, parse it to make sure it's valid
-      JSON.parse(user);
-    } catch (e) {
-      // If it's not a valid JSON string, assume it needs to be decoded first
-      try {
-        userData = decodeURIComponent(user);
-        // Test if it's valid JSON after decoding
-        JSON.parse(userData);
-      } catch (error) {
-        userData = user; // Fallback to original
-      }
-    }
-
-    // Set the user cookie
-    response.cookies.set('user', userData, {
-      httpOnly: false, // Not httpOnly so we can read user info in frontend
+    // Set user cookie
+    response.cookies.set('user', user, {
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      // Don't set domain - let browser determine it automatically
+      maxAge: 24 * 60 * 60 // 24 hours
     });
 
     return response;
   } catch (error) {
     return NextResponse.redirect(
-      `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
+      `${url.origin}/login?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Authentication failed'
       )}`,
       {
