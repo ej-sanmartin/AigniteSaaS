@@ -4,7 +4,7 @@ export async function GET(
   request: Request,
   { params }: { params: { provider: string } }
 ) {
-  const { provider } = params;
+  const { provider } = await params;
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
   const { searchParams } = new URL(request.url);
   const returnTo = searchParams.get('returnTo') || '/dashboard';
