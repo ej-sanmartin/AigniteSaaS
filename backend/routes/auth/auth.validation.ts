@@ -4,7 +4,7 @@ export const oAuthUserSchema = z.object({
   email: z.string().email(),
   firstName: z.string(),
   lastName: z.string(),
-  provider: z.enum(['google', 'linkedin']),
+  provider: z.enum(['google', 'linkedin', 'github']),
   providerId: z.string(),
   role: z.string().default('user')
 });

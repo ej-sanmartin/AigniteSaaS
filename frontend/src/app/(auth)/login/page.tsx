@@ -19,6 +19,7 @@ export default function LoginPage() {
         <div className="space-y-3">
           <OAuthButton provider="google" returnTo={returnTo} />
           <OAuthButton provider="linkedin" returnTo={returnTo} />
+          <OAuthButton provider="github" returnTo={returnTo} />
         </div>
 
         <div className="relative">

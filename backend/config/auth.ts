@@ -19,6 +19,11 @@ interface AuthConfig {
       clientSecret: string | undefined;
       callbackURL: string;
     };
+    github: {
+      clientId: string | undefined;
+      clientSecret: string | undefined;
+      callbackURL: string;
+    };
   };
 }
 
@@ -44,6 +49,11 @@ const config: AuthConfig = {
       clientId: process.env.LINKEDIN_CLIENT_ID!,
       clientSecret: process.env.LINKEDIN_CLIENT_SECRET!,
       callbackURL: process.env.LINKEDIN_CALLBACK_URL!
+    },
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      callbackURL: process.env.GITHUB_CALLBACK_URL!
     }
   }
 };

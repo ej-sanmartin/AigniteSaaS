@@ -10,8 +10,16 @@ interface OAuthButtonProps {
   returnTo?: string;
 }
 
+interface ProviderConfig {
+  text: string;
+  icon: string;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+}
+
 export const OAuthButton: FC<OAuthButtonProps> = ({ provider, onClick, returnTo = '/dashboard' }) => {
-  const config = {
+  const config: Record<OAuthProvider, ProviderConfig> = {
     google: {
       text: 'Continue with Google',
       icon: '/icons/google.svg',
@@ -23,6 +31,13 @@ export const OAuthButton: FC<OAuthButtonProps> = ({ provider, onClick, returnTo 
       text: 'Continue with LinkedIn',
       icon: '/icons/linkedin.svg',
       bgColor: 'bg-[#0A66C2] hover:bg-[#004182]',
+      textColor: 'text-white',
+      borderColor: 'border-transparent',
+    },
+    github: {
+      text: 'Continue with GitHub',
+      icon: '/icons/github.svg',
+      bgColor: 'bg-[#1A1A1A] hover:bg-[#2D2D2D]',
       textColor: 'text-white',
       borderColor: 'border-transparent',
     },

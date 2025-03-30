@@ -11,6 +11,7 @@
   "dependencies": {
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express-session": "^1.18.1",
+    "@types/passport-github2": "^1.2.9",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "connect-pg-simple": "^10.0.0",
@@ -24,6 +25,7 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.1",
     "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "passport-openidconnect": "^0.1.2",
     "pg": "^8.13.3",

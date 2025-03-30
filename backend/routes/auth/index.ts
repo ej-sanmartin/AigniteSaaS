@@ -2,6 +2,7 @@ import express from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as OpenIDConnectStrategy, Profile as OpenIDProfile } from 'passport-openidconnect';
+import { Strategy as GitHubStrategy, Profile as GitHubProfile } from 'passport-github2';
 import config from '../../config/auth';
 import { authController } from './auth.controller';
 import { authLimiter } from '../../middleware/rateLimiter';
@@ -87,6 +88,56 @@ const setupPassportStrategies = (): void => {
     ));
   } else {
     console.warn('LinkedIn OAuth credentials not configured');
+  }
+
+  if (
+    config.oauth.github.clientId &&
+    config.oauth.github.clientSecret
+  ) {
+    passport.use(new GitHubStrategy({
+      clientID: config.oauth.github.clientId,
+      clientSecret: config.oauth.github.clientSecret,
+      callbackURL: config.oauth.github.callbackURL,
+      scope: ['user:email']
+    }, async (_accessToken: string, _refreshToken: string, profile: GitHubProfile, done: (error: any, user?: any) => void) => {
+      try {
+        if (!profile || !profile.id) {
+          return done(new Error('GitHub returned empty or invalid profile'));
+        }
+
+        const transformedProfile = {
+          id: profile.id,
+          emails: profile.emails || [],
+          _json: {
+            firstName: profile.displayName?.split(' ')[0] || '',
+            lastName: profile.displayName?.split(' ').slice(1).join(' ') || '',
+            email: profile.emails?.[0]?.value || ''
+          },
+          displayName: profile.displayName || '',
+          name: {
+            givenName: profile.displayName?.split(' ')[0] || '',
+            familyName: profile.displayName?.split(' ').slice(1).join(' ') || ''
+          },
+          photos: profile.photos || [],
+          provider: 'github',
+          sub: profile.id,
+          email: profile.emails?.[0]?.value || '',
+          given_name: profile.displayName?.split(' ')[0] || '',
+          family_name: profile.displayName?.split(' ').slice(1).join(' ') || '',
+          picture: profile.photos?.[0]?.value || ''
+        };
+
+        if (!transformedProfile.email) {
+          return done(new Error('GitHub profile missing email'));
+        }
+
+        authController.handleOAuthUser(transformedProfile, 'github', done);
+      } catch (error) {
+        done(error);
+      }
+    }));
+  } else {
+    console.warn('GitHub OAuth credentials not configured');
   }
 };
 
@@ -285,6 +336,34 @@ router.get('/linkedin/callback/verify',
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
     }
   }
+);
+
+// Add GitHub routes
+router.get('/github',
+  (_req, res: express.Response, next: express.NextFunction): void => {
+    if (!config.oauth.github.clientId) {
+      res.status(503).json({
+        message: 'GitHub authentication is not configured',
+        code: 'GITHUB_AUTH_NOT_CONFIGURED'
+      });
+      return;
+    }
+    next();
+  },
+  authLimiter,
+  passport.authenticate('github', {
+    scope: ['user:email'],
+    session: false
+  })
+);
+
+router.get('/github/callback',
+  authLimiter,
+  passport.authenticate('github', {
+    session: false,
+    failureRedirect: '/login'
+  }),
+  authController.handleOAuthCallback
 );
 
 router.post('/login', 

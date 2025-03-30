@@ -6,7 +6,7 @@
 export type UserRole = 'user' | 'admin';
 
 // OAuth providers supported by the system
-export type OAuthProvider = 'google' | 'linkedin';
+export type OAuthProvider = 'google' | 'linkedin' | 'github';
 
 // Subscription status types
 export type SubscriptionStatus = 'active' | 'inactive' | 'canceled' | 'trial';

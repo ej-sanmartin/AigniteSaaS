@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { OAuthUser, LinkedInProfile } from './auth.types';
+import { OAuthUser, LinkedInProfile, GitHubProfile } from './auth.types';
 import { authService } from './auth.service';
 import { oAuthUserSchema } from './auth.validation';
 import { userService } from '../users/user.service';
@@ -14,8 +14,8 @@ export class AuthController {
    * Handles OAuth user authentication/creation
    */
   async handleOAuthUser(
-    profile: GoogleProfile | LinkedInProfile,
-    provider: 'google' | 'linkedin',
+    profile: GoogleProfile | LinkedInProfile | GitHubProfile,
+    provider: 'google' | 'linkedin' | 'github',
     done: (error: any, user?: OAuthUser | false) => void
   ): Promise<void> {
     try {
@@ -23,14 +23,28 @@ export class AuthController {
       const user = await userService.getUserByEmail(profile.emails?.[0]?.value || '');
 
       if (!user) {
+        let firstName = '';
+        let lastName = '';
+
+        switch (provider) {
+          case 'google':
+            firstName = (profile as GoogleProfile)._json.given_name || '';
+            lastName = (profile as GoogleProfile)._json.family_name || '';
+            break;
+          case 'linkedin':
+            firstName = (profile as LinkedInProfile).given_name || '';
+            lastName = (profile as LinkedInProfile).family_name || '';
+            break;
+          case 'github':
+            firstName = (profile as GitHubProfile).given_name || '';
+            lastName = (profile as GitHubProfile).family_name || '';
+            break;
+        }
+
         const userData = oAuthUserSchema.parse({
           email: profile.emails?.[0]?.value,
-          firstName: provider === 'google' 
-            ? (profile as GoogleProfile)._json.given_name || ''
-            : (profile as LinkedInProfile).given_name || '',
-          lastName: provider === 'google'
-            ? (profile as GoogleProfile)._json.family_name || ''
-            : (profile as LinkedInProfile).family_name || '',
+          firstName,
+          lastName,
           provider,
           providerId: profile.id || (profile as LinkedInProfile).sub || ''
         });

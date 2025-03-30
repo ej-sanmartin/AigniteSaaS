@@ -15,6 +15,7 @@ export default function SignupPage() {
         <div className="space-y-3">
           <OAuthButton provider="google" />
           <OAuthButton provider="linkedin" />
+          <OAuthButton provider="github" />
         </div>
 
         <div className="relative">

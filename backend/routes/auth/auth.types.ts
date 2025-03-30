@@ -11,7 +11,7 @@ export interface OAuthUser {
   firstName: string;
   lastName: string;
   role: string;
-  provider: 'google' | 'linkedin';
+  provider: 'google' | 'linkedin' | 'github';
   providerId: string;
   createdAt: Date;
   password?: string;
@@ -52,4 +52,26 @@ export interface LinkedInProfile extends OpenIDProfile {
     givenName: string;
   };
   photos: { value: string }[];
+}
+
+export interface GitHubProfile {
+  id: string;
+  displayName: string;
+  emails: { value: string }[];
+  _json: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  name: {
+    givenName: string;
+    familyName: string;
+  };
+  photos: { value: string }[];
+  provider: string;
+  sub: string;
+  email: string;
+  given_name: string;
+  family_name: string;
+  picture: string;
 } 
