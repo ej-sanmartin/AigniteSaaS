@@ -287,57 +287,6 @@ router.get('/linkedin/callback',
   }
 );
 
-// Add verification route
-router.get('/linkedin/callback/verify',
-  authLimiter,
-  async (req: express.Request, res: express.Response) => {
-    try {
-      const { email, returnTo } = req.query;
-      
-      if (!email) {
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
-      }
-      
-      // Get user from database
-      const user = await userService.getUserByEmail(email as string);
-      if (!user) {
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=user_not_found`);
-      }
-      
-      // Update last login
-      await userService.updateLastLogin(user.id);
-      
-      // Generate tokens
-      const accessToken = authService.generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role
-      });
-      
-      const refreshToken = await tokenService.createRefreshToken(user.id);
-      
-      // Remove password from user data
-      const { password, ...userWithoutPassword } = user;
-      
-      // Redirect to frontend
-      const frontendUrl = process.env.FRONTEND_URL;
-      const redirectUrl = new URL(`${frontendUrl}/api/auth/linkedin/callback`);
-      redirectUrl.searchParams.set('token', accessToken);
-      redirectUrl.searchParams.set('refreshToken', refreshToken);
-      redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
-      redirectUrl.searchParams.set('returnTo', returnTo as string || '/dashboard');
-      
-      console.log('Redirecting to frontend:', redirectUrl.toString());
-      res.redirect(redirectUrl.toString());
-      
-    } catch (error) {
-      console.error('Verification error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
-    }
-  }
-);
-
 // Add GitHub routes
 router.get('/github',
   (_req, res: express.Response, next: express.NextFunction): void => {
