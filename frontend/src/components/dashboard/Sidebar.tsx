@@ -87,7 +87,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
           {/* Sidebar content */}
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">SaaS Template</h1>
+              <Link href="/" className="text-xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200">
+                SaaS Template
+              </Link>
             </div>
             <nav className="mt-5 px-2 space-y-1">
               {navigation.map((item) => (
@@ -146,7 +148,11 @@ export function Sidebar({ onCollapse }: SidebarProps) {
           <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center justify-between flex-shrink-0 px-4">
-                {!isCollapsed && <h1 className="text-xl font-bold text-gray-900 dark:text-white">SaaS Template</h1>}
+                {!isCollapsed && (
+                  <Link href="/" className="text-xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200">
+                    SaaS Template
+                  </Link>
+                )}
                 <button
                   onClick={() => handleCollapse(!isCollapsed)}
                   className="p-1 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none"
