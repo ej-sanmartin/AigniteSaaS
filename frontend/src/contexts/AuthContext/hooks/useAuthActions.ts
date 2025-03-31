@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import api from '@/utils/api';
 import toast from 'react-hot-toast';
 import { useAuthState } from './useAuthState';
@@ -10,6 +10,7 @@ import Cookies from 'js-cookie';
 
 export const useAuthActions = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     setUser,
     setIsLoading,
@@ -117,7 +118,11 @@ export const useAuthActions = () => {
       clearRefreshTimeout();
       
       toast.success('Successfully logged out');
-      router.push('/');
+      if (pathname === '/') {
+        window.location.reload();
+      } else {
+        router.push('/');
+      }
     } catch (error) {
       setError({ message: 'Logout failed. Please try again.', code: 'LOGOUT_FAILED' });
       throw error;
