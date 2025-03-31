@@ -12,7 +12,7 @@ export default function ProtectedLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     if (!isLoading && !user) {

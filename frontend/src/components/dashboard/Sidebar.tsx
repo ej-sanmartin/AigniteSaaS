@@ -36,7 +36,7 @@ const navigation: NavItem[] = [
 
 export function Sidebar({ onCollapse }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const pathname = usePathname();
   const { user } = useAuth();
 
