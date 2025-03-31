@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 
 export default function ProtectedLayout({
@@ -12,6 +12,7 @@ export default function ProtectedLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -32,13 +33,13 @@ export default function ProtectedLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="lg:pl-64">
-        <main className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {children}
-          </div>
+    <div className="min-h-screen">
+      <div className="fixed inset-y-0 left-0 h-screen w-64 transition-all duration-300">
+        <Sidebar onCollapse={setIsSidebarCollapsed} />
+      </div>
+      <div className={`${isSidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'} min-h-screen transition-all duration-300`}>
+        <main className="h-screen overflow-y-auto bg-gray-50 dark:bg-gray-900">
+          {children}
         </main>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import { ToastHandler } from '@/components/ToastHandler';
 import { NavBar } from '@/components/landing/NavBar';
 import { Footer } from '@/components/landing/Footer';
+import { usePathname } from 'next/navigation';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -18,16 +19,22 @@ export function RootLayoutClient({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isProtectedRoute = pathname?.startsWith('/dashboard') || 
+                          pathname?.startsWith('/profile') || 
+                          pathname?.startsWith('/settings') ||
+                          pathname?.startsWith('/subscription');
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} antialiased bg-white dark:bg-gray-900 flex flex-col min-h-screen`}>
         <ThemeProvider>
           <AuthProvider>
-            <NavBar />
+            {!isProtectedRoute && <NavBar />}
             <main className="flex-1">
               {children}
             </main>
-            <Footer />
+            {!isProtectedRoute && <Footer />}
           </AuthProvider>
         </ThemeProvider>
         <ToastHandler />
