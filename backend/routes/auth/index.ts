@@ -168,7 +168,7 @@ router.get('/google/callback',
     session: false, 
     failureRedirect: '/login' 
   }),
-  authController.handleOAuthCallback
+  (req, res) => authController.handleOAuthCallback(req, res, 'google')
 );
 
 router.get('/linkedin',
@@ -363,7 +363,7 @@ router.get('/github/callback',
     session: false,
     failureRedirect: '/login'
   }),
-  authController.handleOAuthCallback
+  (req, res) => authController.handleOAuthCallback(req, res, 'github')
 );
 
 router.post('/login', 

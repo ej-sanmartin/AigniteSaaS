@@ -80,10 +80,9 @@ export class AuthController {
   /**
    * Handles OAuth callback
    */
-  async handleOAuthCallback(req: Request, res: Response): Promise<void> {
+  async handleOAuthCallback(req: Request, res: Response, provider: string = 'unknown'): Promise<void> {
     try {
       const user = req.user as OAuthUser | undefined;
-      const provider = req.params.provider || 'unknown';
       
       if (!user) {
         console.error(`No user found in ${provider} OAuth callback`);
