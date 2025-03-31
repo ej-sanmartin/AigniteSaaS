@@ -9,10 +9,6 @@ import { authLimiter } from '../../middleware/rateLimiter';
 import verifyEmailRouter from '../verify_email';
 import { Router } from 'express';
 import { LinkedInProfile } from './auth.types';
-import axios from 'axios';
-import { userService } from '../users/user.service';
-import { authService } from './auth.service';
-import { tokenService } from '../../services/token/token';
 
 const router = Router();
 
@@ -191,100 +187,7 @@ router.get('/linkedin',
 
 router.get('/linkedin/callback',
   authLimiter,
-  async (req: express.Request, res: express.Response) => {
-    try {
-      const { code } = req.query;
-      
-      if (!code) {
-        console.error('No authorization code provided');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
-      }
-      
-      const tokenResponse = await axios.post(
-        'https://www.linkedin.com/oauth/v2/accessToken',
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          code: code as string,
-          redirect_uri: config.oauth.linkedin.callbackURL,
-          client_id: config.oauth.linkedin.clientId || '',
-          client_secret: config.oauth.linkedin.clientSecret || ''
-        }).toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-      
-      const { access_token } = tokenResponse.data;
-      
-      if (!access_token) {
-        console.error('No access token received');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
-      }
-      
-      const userInfoResponse = await axios.get('https://api.linkedin.com/v2/userinfo', {
-        headers: {
-          Authorization: `Bearer ${access_token}`
-        }
-      });
-      
-      const userInfo = userInfoResponse.data;
-      
-      if (!userInfo || !userInfo.sub) {
-        console.error('Invalid user info received');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_user_info`);
-      }
-      
-      let user = await userService.getUserByEmail(userInfo.email);
-      
-      if (!user) {
-        await authService.createOAuthUser({
-          email: userInfo.email,
-          firstName: userInfo.given_name || '',
-          lastName: userInfo.family_name || '',
-          provider: 'linkedin',
-          providerId: userInfo.sub,
-          role: 'user'
-        });
-        user = await userService.getUserByEmail(userInfo.email);
-      }
-      
-      if (!user) {
-        console.error('Failed to create or find user');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=user_creation_failed`);
-      }
-      
-      await userService.updateLastLogin(user.id);
-      const accessToken = authService.generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role
-      });
-      const refreshToken = await tokenService.createRefreshToken(user.id);
-      
-      const { password, ...userWithoutPassword } = user;
-      
-      const frontendUrl = process.env.FRONTEND_URL;
-      if (!frontendUrl) {
-        throw new Error('Frontend URL not configured');
-      }
-      
-      const redirectUrl = new URL(`${frontendUrl}/api/auth/callback`);
-      redirectUrl.searchParams.set('auth', 'success');
-      redirectUrl.searchParams.set('auth_token', accessToken);
-      redirectUrl.searchParams.set('refresh_token', refreshToken);
-      redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
-      redirectUrl.searchParams.set('returnTo', req.query.returnTo as string || '/dashboard');
-      
-      res.redirect(redirectUrl.toString());
-      
-    } catch (error) {
-      console.error('LinkedIn callback error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
-    }
-  }
+  (req, res) => authController.handleLinkedInOAuthCallback(req, res)
 );
 
 // Add GitHub routes
