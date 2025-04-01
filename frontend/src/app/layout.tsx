@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import '@/styles/globals.css';
 import { RootLayoutClient } from '@/components/RootLayoutClient';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'
+  ),
   title: {
     default: 'Your App - Modern Solution for Your Needs',
     template: '%s | Your App'
