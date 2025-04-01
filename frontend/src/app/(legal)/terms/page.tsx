@@ -51,18 +51,17 @@ const termsContent = [
   },
 ];
 
-export default function Terms() {
+export default function TermsPage() {
   return (
     <>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Terms of Service</h1>
-      <div className="prose prose-blue max-w-none">
-        <p className="text-gray-600 mb-8">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Terms of Service</h1>
+      <div className="prose prose-blue max-w-none dark:prose-invert">
+        <p className="text-gray-600 dark:text-gray-300 mb-8">
           Last updated: {new Date().toLocaleDateString()}
         </p>
-
-        <p className="text-gray-600 mb-8">
-          Please read these Terms of Service carefully before using our services.
-          These terms govern your use of our website and services.
+        
+        <p className="text-gray-600 dark:text-gray-300 mb-8">
+          Please read these terms and conditions carefully before using our service.
         </p>
 
         {termsContent.map((section, index) => (
@@ -73,11 +72,11 @@ export default function Terms() {
           />
         ))}
 
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <p className="text-gray-600">
-            If you have any questions about these Terms of Service, please contact us at:
+        <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-gray-600 dark:text-gray-300">
+            If you have any questions about these Terms, please contact us at:
             <br />
-            <a href="mailto:legal@yourapp.com" className="text-blue-600 hover:text-blue-500">
+            <a href="mailto:legal@yourapp.com" className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
               legal@yourapp.com
             </a>
           </p>

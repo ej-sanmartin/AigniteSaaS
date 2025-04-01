@@ -50,13 +50,13 @@ const privacyContent = [
 export default function PrivacyPolicy() {
   return (
     <>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Privacy Policy</h1>
-      <div className="prose prose-blue max-w-none">
-        <p className="text-gray-600 mb-8">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Privacy Policy</h1>
+      <div className="prose prose-blue max-w-none dark:prose-invert">
+        <p className="text-gray-600 dark:text-gray-300 mb-8">
           Last updated: {new Date().toLocaleDateString()}
         </p>
         
-        <p className="text-gray-600 mb-8">
+        <p className="text-gray-600 dark:text-gray-300 mb-8">
           This Privacy Policy describes how we collect, use, and share your personal information
           when you use our services. By using our services, you agree to the collection and use
           of information in accordance with this policy.
@@ -70,11 +70,11 @@ export default function PrivacyPolicy() {
           />
         ))}
 
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <p className="text-gray-600">
+        <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-gray-600 dark:text-gray-300">
             If you have any questions about this Privacy Policy, please contact us at:
             <br />
-            <a href="mailto:privacy@yourapp.com" className="text-blue-600 hover:text-blue-500">
+            <a href="mailto:privacy@yourapp.com" className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
               privacy@yourapp.com
             </a>
           </p>
