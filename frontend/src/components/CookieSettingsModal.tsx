@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 interface CookiePreferences {
   functional: boolean;
@@ -37,8 +38,8 @@ export default function CookieSettingsModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h2 className="text-xl font-semibold mb-4">Cookie Settings</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Cookie Settings</h2>
         
         <div className="space-y-4">
           {/* Essential cookies (always enabled) */}
@@ -50,8 +51,8 @@ export default function CookieSettingsModal({
               className="mt-1"
             />
             <div>
-              <label className="font-medium">Essential Cookies</label>
-              <p className="text-sm text-gray-600">
+              <label className="font-medium text-gray-900 dark:text-white">Essential Cookies</label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Required for the website to function properly. Cannot be disabled.
               </p>
             </div>
@@ -68,8 +69,8 @@ export default function CookieSettingsModal({
               className="mt-1"
             />
             <div>
-              <label className="font-medium">Functional Cookies</label>
-              <p className="text-sm text-gray-600">
+              <label className="font-medium text-gray-900 dark:text-white">Functional Cookies</label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Enable enhanced functionality and personalization.
               </p>
             </div>
@@ -86,8 +87,8 @@ export default function CookieSettingsModal({
               className="mt-1"
             />
             <div>
-              <label className="font-medium">Analytics Cookies</label>
-              <p className="text-sm text-gray-600">
+              <label className="font-medium text-gray-900 dark:text-white">Analytics Cookies</label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Help us understand how visitors interact with our website.
               </p>
             </div>
@@ -104,27 +105,35 @@ export default function CookieSettingsModal({
               className="mt-1"
             />
             <div>
-              <label className="font-medium">Advertising Cookies</label>
-              <p className="text-sm text-gray-600">
+              <label className="font-medium text-gray-900 dark:text-white">Advertising Cookies</label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Used to deliver personalized advertisements.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+        <div className="mt-6 flex justify-between items-center">
+          <Link
+            href="/cookie-policy"
+            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(preferences)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Save Preferences
-          </button>
+            Learn more about our cookie policy
+          </Link>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(preferences)}
+              className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+            >
+              Save Preferences
+            </button>
+          </div>
         </div>
       </div>
     </div>
