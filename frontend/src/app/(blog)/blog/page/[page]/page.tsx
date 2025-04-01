@@ -1,24 +1,26 @@
 import { Metadata } from 'next';
-import { getPosts } from '@/lib/getPosts';
+import { getPosts } from '@/utils/blog/getPosts';
 import { BlogCard } from '@/components/blog/BlogCard';
 import { Pagination } from '@/components/blog/Pagination';
 
 interface BlogPageProps {
-  params: {
+  params: Promise<{
     page: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: BlogPageProps): Promise<Metadata> {
+  const { page } = await params;
   return {
-    title: `Blog - Page ${params.page} | Your App`,
-    description: `Read our latest articles and updates about workflow management and productivity. Page ${params.page}.`,
+    title: `Blog - Page ${page} | Your App`,
+    description: `Read our latest articles and updates about workflow management and productivity. Page ${page}.`,
   };
 }
 
 export default async function BlogPage({ params }: BlogPageProps) {
-  const page = parseInt(params.page, 10);
-  const { posts, totalPages, currentPage } = await getPosts(page);
+  const { page } = await params;
+  const pageNumber = parseInt(page, 10);
+  const { posts, totalPages, currentPage } = await getPosts(pageNumber);
 
   return (
     <div className="container mx-auto px-4 py-8">
