@@ -8,4 +8,10 @@
 /#pricing - Pricing section
 /#faq - FAQ section
 
+# Legal Pages
+/privacy - Privacy Policy
+/terms - Terms of Service
+/cookie-policy - Cookie Policy
+/compliance - Compliance Information
+
 # Note: All other routes require authentication and are not listed here. 

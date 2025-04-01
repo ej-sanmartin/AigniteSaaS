@@ -37,6 +37,18 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://your-domain.com/cookie-policy</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://your-domain.com/compliance</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://your-domain.com/llms.txt</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>monthly</changefreq>

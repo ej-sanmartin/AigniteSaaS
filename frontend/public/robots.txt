@@ -8,6 +8,8 @@ Allow: /signup
 Allow: /about
 Allow: /privacy
 Allow: /terms
+Allow: /cookie-policy
+Allow: /compliance
 Allow: /llms.txt
 Disallow: /dashboard
 Disallow: /settings
