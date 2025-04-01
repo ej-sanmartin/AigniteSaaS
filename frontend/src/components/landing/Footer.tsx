@@ -81,7 +81,7 @@ export function Footer() {
           alt="X (Twitter)"
           width={24}
           height={24}
-          className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+          className="opacity-75 hover:opacity-50 transition-opacity duration-200"
         />
       ),
     },
@@ -94,7 +94,7 @@ export function Footer() {
           alt="GitHub"
           width={24}
           height={24}
-          className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+          className="opacity-75 hover:opacity-50 transition-opacity duration-200"
         />
       ),
     },
@@ -107,7 +107,7 @@ export function Footer() {
           alt="LinkedIn"
           width={24}
           height={24}
-          className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+          className="opacity-75 hover:opacity-50 transition-opacity duration-200"
         />
       ),
     },
