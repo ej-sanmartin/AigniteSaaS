@@ -5,13 +5,14 @@ import { getPosts } from '@/utils/blog/getPosts';
 import { notFound } from 'next/navigation';
 
 interface BlogPostProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: BlogPostProps): Promise<Metadata> {
-  const post = await getPostBySlug(params.slug);
+  const { slug } = await params;
+  const post = await getPostBySlug(slug);
   
   if (!post) {
     return {
@@ -32,7 +33,8 @@ export async function generateMetadata({ params }: BlogPostProps): Promise<Metad
 }
 
 export default async function BlogPost({ params }: BlogPostProps) {
-  const post = await getPostBySlug(params.slug);
+  const { slug } = await params;
+  const post = await getPostBySlug(slug);
 
   if (!post) {
     notFound();
@@ -49,15 +51,17 @@ export default async function BlogPost({ params }: BlogPostProps) {
         />
       </div>
       <header className="mb-8">
-        <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
-        <div className="flex items-center gap-4 text-gray-600">
+        <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-white">{post.title}</h1>
+        <div className="flex items-center gap-4 text-gray-600 dark:text-gray-300">
           <time>{new Date(post.published_at).toLocaleDateString()}</time>
-          <span>•</span>
+          <span className="text-gray-400 dark:text-gray-500">•</span>
           <span>By {post.author}</span>
         </div>
       </header>
-      <div className="prose prose-lg max-w-none">
-        {post.content}
+      <div className="dark:text-white">
+        <div className="prose prose-lg max-w-none">
+          {post.content}
+        </div>
       </div>
     </article>
   );
