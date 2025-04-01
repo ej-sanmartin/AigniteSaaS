@@ -1,9 +1,26 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import CookieSettingsModal from '../CookieSettingsModal';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const [showCookieSettings, setShowCookieSettings] = useState(false);
+
+  const handleSavePreferences = (preferences: {
+    functional: boolean;
+    analytics: boolean;
+    advertising: boolean;
+  }) => {
+    localStorage.setItem('cookiePreferences', JSON.stringify(preferences));
+    setShowCookieSettings(false);
+
+    // Load cookies based on preferences
+    if (preferences.analytics) loadAnalytics();
+    if (preferences.advertising) loadAds();
+    if (preferences.functional) loadFunctional();
+  };
 
   const footerSections = [
     {
@@ -40,6 +57,11 @@ export function Footer() {
         { href: '/terms', label: 'Terms of Service' },
         { href: '/cookies', label: 'Cookie Policy' },
         { href: '/compliance', label: 'Compliance' },
+        {
+          href: '#',
+          label: 'Cookie Settings',
+          onClick: () => setShowCookieSettings(true),
+        },
       ],
     },
   ];
@@ -86,13 +108,23 @@ export function Footer() {
               <ul className="mt-4 space-y-4">
                 {section.links.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-base text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white inline-flex items-center"
-                    >
-                      {link.label}
-                      {link.icon}
-                    </Link>
+                    {link.onClick ? (
+                      <button
+                        onClick={link.onClick}
+                        className="text-base text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white inline-flex items-center"
+                      >
+                        {link.label}
+                        {link.icon}
+                      </button>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="text-base text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white inline-flex items-center"
+                      >
+                        {link.label}
+                        {link.icon}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -122,6 +154,25 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      <CookieSettingsModal
+        isOpen={showCookieSettings}
+        onClose={() => setShowCookieSettings(false)}
+        onSave={handleSavePreferences}
+      />
     </footer>
   );
+}
+
+// Placeholder functions for loading different types of cookies
+function loadAnalytics() {
+  console.log('Loading analytics cookies');
+}
+
+function loadAds() {
+  console.log('Loading advertising cookies');
+}
+
+function loadFunctional() {
+  console.log('Loading functional cookies');
 } 

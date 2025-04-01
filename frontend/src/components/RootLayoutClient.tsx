@@ -8,6 +8,7 @@ import { ToastHandler } from '@/components/ToastHandler';
 import { NavBar } from '@/components/landing/NavBar';
 import { Footer } from '@/components/landing/Footer';
 import { usePathname } from 'next/navigation';
+import CookieConsent from '@/components/CookieConsent';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -35,6 +36,7 @@ export function RootLayoutClient({
               {children}
             </main>
             {!isProtectedRoute && <Footer />}
+            <CookieConsent />
           </AuthProvider>
         </ThemeProvider>
         <ToastHandler />
