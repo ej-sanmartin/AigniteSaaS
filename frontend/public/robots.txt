@@ -11,6 +11,8 @@ Allow: /terms
 Allow: /cookie-policy
 Allow: /compliance
 Allow: /llms.txt
+Allow: /blog
+Allow: /blog/*
 Disallow: /dashboard
 Disallow: /settings
 Disallow: /verify-email

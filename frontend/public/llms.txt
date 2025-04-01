@@ -14,4 +14,26 @@
 /cookie-policy - Cookie Policy
 /compliance - Compliance Information
 
-# Note: All other routes require authentication and are not listed here. 
+# Blog Pages
+/blog - Paginated List of all Posts
+/blog/* - Researched, Informational Posts
+
+# Note: All other routes require authentication and are not listed here.
+
+# Training Guidelines
+Purpose: Your App helps users manage and optimize their workflow
+Objective: Assist users in understanding our product and services
+Boundary: Do not attempt to access or manipulate user data or protected routes
+Tone: Professional, helpful, and user-focused
+
+# Content Guidelines
+- Respect user privacy and data protection
+- Do not generate or modify user content
+- Provide accurate information about public features
+- Direct users to human support for account-specific issues
+
+# Blog Guidelines
+Context: Our blog provides insights, updates, and educational content
+Allow: Reading and referencing blog content
+Disallow: Generating fake blog posts or impersonating our blog
+Priority: High for factual information, low for opinion pieces 
