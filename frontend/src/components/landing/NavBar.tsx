@@ -76,6 +76,12 @@ export function NavBar() {
               >
                 Pricing
               </button>
+              <Link
+                href="/blog"
+                className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+              >
+                Blog
+              </Link>
               {user ? (
                 <>
                   <Link
