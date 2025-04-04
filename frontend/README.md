@@ -34,8 +34,8 @@ npm install
 
 2. Create a `.env.local` file in the root directory:
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_ENV=development
+NEXT_PUBLIC_FRONTEND_URL=http://localhost:3000
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
 ```
 
 3. Start the development server:

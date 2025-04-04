@@ -4,12 +4,9 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAuthState } from './useAuthState';
 import api from '@/utils/api';
 import { TOKEN_REFRESH_INTERVAL } from '../utils/constants';
-import Cookies from 'js-cookie';
 
 export const useAuthEffects = () => {
   const {
-    user,
-    setUser,
     setError,
     clearError,
     setRefreshTimeout,
@@ -29,22 +26,7 @@ export const useAuthEffects = () => {
       isRefreshing.current = true;
 
       try {
-        const { data } = await api.post('/auth/refresh');
-        
-        if (!data.token) {
-          throw new Error('No token received from refresh endpoint');
-        }
-        
-        // Update user data if needed
-        if (data.user) {
-          setUser(data.user);
-          Cookies.set('user', JSON.stringify(data.user), {
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/',
-            expires: 1 // 1 day
-          });
-        }
+        await api.post('/auth/refresh');
         
         // Schedule next refresh
         const nextTimeout = setTimeout(() => {
@@ -54,9 +36,6 @@ export const useAuthEffects = () => {
         
         setRefreshTimeout(nextTimeout);
       } catch (error) {
-        // Clear user state on refresh failure
-        Cookies.remove('user');
-        setUser(null);
         setError({ 
           message: 'Session expired. Please login again.', 
           code: 'SESSION_EXPIRED' 
@@ -67,20 +46,21 @@ export const useAuthEffects = () => {
     }, TOKEN_REFRESH_INTERVAL);
 
     setRefreshTimeout(timeout);
-  }, [clearRefreshTimeout, setRefreshTimeout, setUser, setError]);
+  }, [clearRefreshTimeout, setRefreshTimeout, setError]);
 
   // Handle token refresh
   useEffect(() => {
-    // Only set up refresh once when user becomes available
-    // and if we haven't already set it up
-    if (user && !isSetupComplete.current && !isRefreshing.current) {
+    // Check if we have a session cookie
+    const hasSession = document.cookie.includes('session_id=');
+    
+    if (hasSession && !isSetupComplete.current && !isRefreshing.current) {
       isSetupComplete.current = true;
       // Start refresh immediately
       scheduleTokenRefresh();
     }
 
-    // If user is logged out, reset the setup flag
-    if (!user) {
+    // If no session, reset the setup flag
+    if (!hasSession) {
       isSetupComplete.current = false;
       clearRefreshTimeout();
     }
@@ -90,13 +70,12 @@ export const useAuthEffects = () => {
       clearRefreshTimeout();
       isRefreshing.current = false;
     };
-  }, [user, scheduleTokenRefresh, clearRefreshTimeout]);
+  }, [scheduleTokenRefresh, clearRefreshTimeout]);
 
   return {
     scheduleTokenRefresh,
     clearRefreshTimeout,
     setIsLoading,
-    setError,
-    setUser
+    setError
   };
 }; 

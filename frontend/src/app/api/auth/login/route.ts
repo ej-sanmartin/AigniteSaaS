@@ -9,6 +9,7 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Include cookies in the request
       body: JSON.stringify(body),
     });
 
@@ -18,44 +19,40 @@ export async function POST(request: Request) {
       throw new Error(data.message || 'Login failed');
     }
 
-    // Create response with user data
-    const resp = NextResponse.json({ user: data.user });
+    // Create response with success message
+    const resp = NextResponse.json({ message: 'Login successful' });
 
     // Set the access token
-    resp.cookies.set('auth_token', data.token, {
-      httpOnly: false,
+    resp.cookies.set('token', data.token, {
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60, // 24 hours
-      // Don't set domain - let browser determine it automatically
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     // Set the refresh token
     if (data.refreshToken) {
-      resp.cookies.set('refresh_token', data.refreshToken, {
+      resp.cookies.set('refreshToken', data.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
         path: '/',
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-        // Don't set domain - let browser determine it automatically
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
     }
 
-    // Add the user cookie - make sure we have valid JSON
-    const userData = typeof data.user === 'string' 
-      ? data.user 
-      : JSON.stringify(data.user);
-      
-    resp.cookies.set('user', userData, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60, // 24 hours
-      // Don't set domain - let browser determine it automatically
-    });
+    // Forward the CSRF token cookie from the backend response
+    const csrfCookie = response.headers.get('set-cookie')?.split(';').find(c => c.includes('csrf_token'));
+    if (csrfCookie) {
+      const [name, value] = csrfCookie.split('=');
+      resp.cookies.set(name.trim(), value.trim(), {
+        httpOnly: false, // Frontend needs to read this
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        path: '/',
+      });
+    }
 
     return resp;
   } catch (error) {

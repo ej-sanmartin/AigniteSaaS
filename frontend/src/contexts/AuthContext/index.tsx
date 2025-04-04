@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     ...state,
     ...actions,
     ...effects,
-    isAuthenticated: !!state.user
+    isAuthenticated: state.isAuthenticated
   }), [state, actions, effects]);
 
   return (

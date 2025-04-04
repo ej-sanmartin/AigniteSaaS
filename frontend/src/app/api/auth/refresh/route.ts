@@ -3,8 +3,8 @@ import { cookies } from 'next/headers';
 
 export async function POST() {
   try {
-    const cookieStore = cookies();
-    const refreshToken = cookieStore.get('refresh_token');
+    const cookieStore = await cookies();
+    const refreshToken = cookieStore.get('refreshToken')?.value;
 
     if (!refreshToken) {
       return NextResponse.json(
@@ -17,7 +17,7 @@ export async function POST() {
       method: 'POST',
       credentials: 'include',
       headers: {
-        'Cookie': `refresh_token=${refreshToken.value}`,
+        'Cookie': `refreshToken=${refreshToken}`,
       },
     });
 
@@ -27,44 +27,26 @@ export async function POST() {
       throw new Error(data.message || 'Token refresh failed');
     }
 
-    // Create new response with updated cookies and include user data
-    const resp = NextResponse.json({ 
-      message: 'Token refreshed',
-      user: data.user // Include user data in response
-    });
+    // Create new response with success message
+    const resp = NextResponse.json({ message: 'Token refreshed' });
 
     // Set the new access token
-    resp.cookies.set('auth_token', data.token, {
-      httpOnly: false, // Not httpOnly so JavaScript can read it
+    resp.cookies.set('token', data.token, {
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60, // 24 hours
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     // Set the new refresh token if provided
     if (data.refreshToken) {
-      resp.cookies.set('refresh_token', data.refreshToken, {
-        httpOnly: true, // Keep refresh token httpOnly for security
+      resp.cookies.set('refreshToken', data.refreshToken, {
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
         path: '/',
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-      });
-    }
-
-    // Add the user cookie if present in response
-    if (data.user) {
-      const userData = typeof data.user === 'string' 
-        ? data.user 
-        : JSON.stringify(data.user);
-        
-      resp.cookies.set('user', userData, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 24 * 60 * 60, // 24 hours
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
     }
 

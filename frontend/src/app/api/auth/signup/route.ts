@@ -26,9 +26,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create response with user data
+    // Create response with success message
     const resp = NextResponse.json({ 
-      user: data.user,
       message: data.message,
       fromSignup: true
     });
@@ -37,9 +36,9 @@ export async function POST(request: Request) {
     resp.cookies.set('token', data.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60, // 24 hours
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     // Set the refresh token
@@ -47,24 +46,11 @@ export async function POST(request: Request) {
       resp.cookies.set('refreshToken', data.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
         path: '/',
-        maxAge: 7 * 24 * 60 * 60, // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
     }
-
-    // Add the user cookie
-    const userData = typeof data.user === 'string' 
-      ? data.user 
-      : JSON.stringify(data.user);
-      
-    resp.cookies.set('user', userData, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60, // 24 hours
-    });
 
     return resp;
   } catch (error) {

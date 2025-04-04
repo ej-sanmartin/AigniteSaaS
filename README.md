@@ -2,6 +2,15 @@
 
 A modern, production-ready template for building SaaS applications with separate frontend and backend services. This template provides a solid foundation for quickly launching new SaaS projects with a focus on maintainability, security, and scalability.
 
+## 🔒 Security
+
+For detailed information about our security practices, environment-specific configurations, and compliance measures, please refer to our [Security Documentation](SECURITY.md).
+
+**Current Compliance Status:**
+- ✅ GDPR compliant with cookie consent and data protection measures
+- 🚧 HIPAA compliance in progress (basic security measures implemented)
+- 🔒 Basic security measures in place for all environments
+
 ## ⚡ Quick Start
 
 1. Fork this repository

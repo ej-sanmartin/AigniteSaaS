@@ -1,17 +1,38 @@
 import { Request, Response } from 'express';
-import { OAuthUser, LinkedInProfile, GitHubProfile } from './auth.types';
 import { authService } from './auth.service';
-import { oAuthUserSchema } from './auth.validation';
 import { userService } from '../users/user.service';
+import { tokenService } from '../../services/token/token';
+import { SessionService } from '../../services/session/session.service';
+import { OAuthUser, LinkedInProfile, GitHubProfile, GoogleProfile } from './auth.types';
+import crypto from 'crypto';
+import { RequestWithSession } from '../../types/express';
+import {
+  LinkedInTokenResponse,
+  LinkedInUserInfo,
+  GitHubTokenResponse,
+  GitHubUserInfo
+} from './auth.types';
 import { loginSchema } from './auth.validation';
 import bcrypt from 'bcrypt';
-import { tokenService } from '../../services/token/token';
 import { TokenPayload } from './auth.types';
-import { Profile as GoogleProfile } from 'passport-google-oauth20';
 import axios from 'axios';
 import config from '../../config/auth';
+import securityConfig from '../../config/security';
+import { auditService } from '../../services/audit/audit.service';
+import { UserService } from '../users/user.service';
+import redirectConfig from '../../config/redirect';
 
 export class AuthController {
+  private userService: UserService;
+  private sessionService: SessionService;
+  private tokenService: typeof tokenService;
+
+  constructor() {
+    this.userService = new UserService();
+    this.sessionService = new SessionService();
+    this.tokenService = tokenService;
+  }
+
   /**
    * Handles OAuth user authentication/creation
    */
@@ -21,41 +42,28 @@ export class AuthController {
     done: (error: any, user?: OAuthUser | false) => void
   ): Promise<void> {
     try {
-      // Find user by email instead of provider ID
-      const user = await userService.getUserByEmail(profile.emails?.[0]?.value || '');
+      const email = profile.emails?.[0]?.value;
+      
+      if (!email) {
+        done(new Error('No email found in profile'));
+        return;
+      }
+      
+      let user = await userService.getUserByEmail(email);
 
       if (!user) {
-        let firstName = '';
-        let lastName = '';
-
-        switch (provider) {
-          case 'google':
-            firstName = (profile as GoogleProfile)._json.given_name || '';
-            lastName = (profile as GoogleProfile)._json.family_name || '';
-            break;
-          case 'linkedin':
-            firstName = (profile as LinkedInProfile).given_name || '';
-            lastName = (profile as LinkedInProfile).family_name || '';
-            break;
-          case 'github':
-            firstName = (profile as GitHubProfile).given_name || '';
-            lastName = (profile as GitHubProfile).family_name || '';
-            break;
-        }
-
-        const userData = oAuthUserSchema.parse({
-          email: profile.emails?.[0]?.value,
-          firstName,
-          lastName,
+        const userData = {
+          email,
+          firstName: profile.name?.givenName || profile.displayName?.split(' ')[0] || '',
+          lastName: profile.name?.familyName || profile.displayName?.split(' ').slice(1).join(' ') || '',
           provider,
           providerId: profile.id || (profile as LinkedInProfile).sub || ''
-        });
+        };
 
         try {
           const newUser = await authService.createOAuthUser(userData);
           done(null, newUser);
         } catch (createError) {
-          console.error('Error creating OAuth user:', createError);
           done(createError);
         }
       } else {
@@ -68,13 +76,6 @@ export class AuthController {
         done(null, oauthUser);
       }
     } catch (error) {
-      console.error(`Error in handleOAuthUser for ${provider}:`, error);
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack
-        });
-      }
       done(error);
     }
   }
@@ -82,63 +83,112 @@ export class AuthController {
   /**
    * Handles OAuth callback
    */
-  async handleOAuthCallback(req: Request, res: Response, provider: string = 'unknown'): Promise<void> {
+  async handleOAuthCallback(req: Request, res: Response, provider: string): Promise<void> {
     try {
-      const user = req.user as OAuthUser | undefined;
-      
+      const user = req.user as OAuthUser;
       if (!user) {
-        console.error(`No user found in ${provider} OAuth callback`);
-        const errorUrl = `${process.env.FRONTEND_URL}/login`;
-        res.redirect(`${errorUrl}?error=${encodeURIComponent('Authentication failed')}`);
-        return;
+        throw new Error('No user found in request');
       }
 
-      // Verify user exists in database by email instead of ID
-      const dbUser = await userService.getUserByEmail(user.email);
-      if (!dbUser) {
-        console.error(`User not found in database after ${provider} OAuth flow`);
-        const errorUrl = `${process.env.FRONTEND_URL}/login`;
-        res.redirect(`${errorUrl}?error=${encodeURIComponent('User not found')}`);
-        return;
-      }
+      // Log successful OAuth completion
+      auditService.logAuthEvent(
+        auditService.createAuditEvent(req, {
+          type: 'oauth_complete',
+          userId: user.id,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          status: 'success',
+          provider,
+        })
+      );
 
-      // Update last login timestamp
-      await userService.updateLastLogin(dbUser.id);
+      // Update last login
+      await this.userService.updateLastLogin(user.id);
+
+      // Create session
+      const session = await this.sessionService.createSession(user.id, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'] || 'unknown',
+      });
 
       // Generate access token
       const accessToken = authService.generateToken({
-        id: dbUser.id,
-        email: dbUser.email,
-        role: dbUser.role
-      });
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        sessionId: session.session_id
+      } as TokenPayload & { sessionId: string });
 
       // Generate refresh token
-      const refreshToken = await tokenService.createRefreshToken(dbUser.id);
+      const refreshToken = await this.tokenService.createRefreshToken(user.id);
 
-      // Remove password from user data
-      const { password, ...userWithoutPassword } = dbUser;
+      // Set cookies using security config
+      const cookieOptions = {
+        httpOnly: securityConfig.cookies.httpOnly,
+        secure: securityConfig.cookies.secure,
+        sameSite: securityConfig.cookies.sameSite as 'lax' | 'strict' | 'none',
+      };
 
-      // Get returnTo from query params or default to dashboard
-      const returnTo = req.query.returnTo as string || '/dashboard';
+      // Set session cookie
+      res.cookie('session_id', session.session_id, {
+        ...cookieOptions,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      });
 
-      // Redirect back to frontend with tokens and user data
-      const frontendUrl = process.env.FRONTEND_URL;
-      if (!frontendUrl) {
-        throw new Error('Frontend URL not configured');
-      }
+      // Set access token cookie
+      res.cookie('token', accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000, // 15 minutes
+      });
 
-      const redirectUrl = new URL(`${frontendUrl}/api/auth/${provider}/callback`);
-      redirectUrl.searchParams.set('token', accessToken);
-      redirectUrl.searchParams.set('refreshToken', refreshToken);
-      redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
-      redirectUrl.searchParams.set('returnTo', returnTo);
+      // Set refresh token cookie
+      res.cookie('refreshToken', refreshToken, {
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
 
-      res.redirect(redirectUrl.toString());
+      // Redirect to frontend
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      
+      // Get the validated redirect path using existing config
+      const returnTo = req.query.returnTo as string;
+      const userRole = user.role;
+      const redirectPath = redirectConfig.roleBasedRedirects.authenticated[userRole] || 
+                          redirectConfig.defaultRedirect;
+
+      // Log the redirect event
+      auditService.logAuthEvent(
+        auditService.createAuditEvent(req, {
+          type: 'oauth_complete',
+          userId: user.id,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          status: 'success',
+          provider,
+          metadata: {
+            requestedPath: returnTo,
+            finalPath: redirectPath
+          }
+        })
+      );
+
+      res.redirect(`${frontendUrl}${redirectPath}`);
     } catch (error) {
       console.error('OAuth callback error:', error);
-      const errorUrl = `${process.env.FRONTEND_URL}/login`;
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      res.redirect(`${errorUrl}?error=${encodeURIComponent(errorMessage)}`);
+      
+      // Log failed OAuth completion
+      auditService.logAuthEvent(
+        auditService.createAuditEvent(req, {
+          type: 'oauth_complete',
+          userId: req.user?.id || 0,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          status: 'failure',
+          provider,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
+      );
+
+      // Redirect to login with error
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Authentication failed')}`);
     }
   }
 
@@ -178,6 +228,8 @@ export class AuthController {
       const accessToken = authService.generateToken({
         id: user.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role
       });
 
@@ -225,14 +277,37 @@ export class AuthController {
       const accessToken = authService.generateToken({
         id: user.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role
       });
 
       // Generate new refresh token
       const newRefreshToken = await tokenService.createRefreshToken(user.id);
 
-      // Revoke old refresh token
-      await tokenService.revokeRefreshToken(refreshToken);
+      // Get the ID of the new refresh token
+      const newTokenId = await tokenService.getTokenId(newRefreshToken);
+      if (!newTokenId) {
+        throw new Error('Failed to get new token ID');
+      }
+
+      // Revoke old refresh token and link it to the new one
+      await tokenService.revokeRefreshToken(refreshToken, newTokenId);
+
+      // Set secure cookies
+      res.cookie('token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000 // 15 minutes
+      });
+
+      res.cookie('refreshToken', newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
 
       res.json({
         token: accessToken,
@@ -249,64 +324,79 @@ export class AuthController {
    */
   async logout(req: Request, res: Response): Promise<void> {
     try {
-      // Get user ID from the authenticated request
-      const user = req.user as TokenPayload;
-      const userId = user?.id;
-      
-      if (userId) {
-        // Revoke all refresh tokens for the user
-        await tokenService.revokeAllUserTokens(userId);
+      const sessionId = req.cookies.session_id;
+      const refreshToken = req.cookies.refreshToken;
+
+      if (sessionId) {
+        await this.sessionService.revokeSession(sessionId);
       }
 
-      // Clear cookies
-      res.clearCookie('token');
-      res.clearCookie('refreshToken');
-      res.clearCookie('user');
+      if (refreshToken) {
+        await this.tokenService.revokeRefreshToken(refreshToken);
+      }
 
-      res.json({ message: 'Logged out successfully' });
+      // Clear all cookies using security config
+      const cookieOptions = {
+        httpOnly: securityConfig.cookies.httpOnly,
+        secure: securityConfig.cookies.secure,
+        sameSite: securityConfig.cookies.sameSite as 'lax' | 'strict' | 'none',
+      };
+
+      // Clear session cookie
+      res.clearCookie('session_id', cookieOptions);
+      
+      // Clear access token cookie
+      res.clearCookie('token', cookieOptions);
+      
+      // Clear refresh token cookie
+      res.clearCookie('refreshToken', cookieOptions);
+      
+      // Clear CSRF token cookie
+      res.clearCookie('csrf_token', cookieOptions);
+
+      res.json({ message: 'Successfully logged out' });
     } catch (error) {
       console.error('Logout error:', error);
-      res.status(500).json({ message: 'Error during logout' });
+      res.status(500).json({ 
+        message: 'Logout failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
   /**
-   * Check authentication status and return current user
+   * Checks authentication status
    */
-  async checkAuth(req: Request, res: Response): Promise<void> {
+  async checkAuth(req: RequestWithSession, res: Response): Promise<void> {
     try {
-      console.log('Checking auth status');
+      const sessionId = req.cookies.session_id;
       
-      const user = req.user as TokenPayload;
-      
-      if (!user) {
-        console.log('No user found in request');
-        res.status(401).json({ message: 'Not authenticated' });
+      if (!sessionId) {
+        res.status(401).json({ error: 'No session found' });
         return;
       }
 
-      // Get fresh user data from database
-      const dbUser = await userService.getUserById(user.id);
+      const session = await this.sessionService.getSession(sessionId);
       
-      if (!dbUser) {
-        console.log('User not found in database');
-        res.status(401).json({ message: 'User not found' });
+      if (!session) {
+        res.status(401).json({ error: 'Invalid or expired session' });
+        return;
+      }
+
+      const user = await userService.getUserById(session.user_id);
+      
+      if (!user) {
+        res.status(401).json({ error: 'User not found' });
         return;
       }
 
       // Remove sensitive data
-      const { password, ...userWithoutPassword } = dbUser;
+      const { password, ...userWithoutPassword } = user;
 
-      // Ensure isVerified is included in the response
-      const userResponse = {
-        ...userWithoutPassword,
-        isVerified: dbUser.isVerified
-      };
-
-      res.json({ user: userResponse });
+      res.json({ user: userWithoutPassword });
     } catch (error) {
-      console.error('Auth check error:', error);
-      res.status(500).json({ message: 'Failed to check auth status' });
+      console.error('[AUTH-DEBUG] Check auth error:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -323,7 +413,7 @@ export class AuthController {
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
       }
       
-      const tokenResponse = await axios.post(
+      const tokenResponse = await axios.post<LinkedInTokenResponse>(
         'https://www.linkedin.com/oauth/v2/accessToken',
         new URLSearchParams({
           grant_type: 'authorization_code',
@@ -346,7 +436,7 @@ export class AuthController {
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
       }
       
-      const userInfoResponse = await axios.get('https://api.linkedin.com/v2/userinfo', {
+      const userInfoResponse = await axios.get<LinkedInUserInfo>('https://api.linkedin.com/v2/userinfo', {
         headers: {
           Authorization: `Bearer ${access_token}`
         }
@@ -382,30 +472,231 @@ export class AuthController {
       const accessToken = authService.generateToken({
         id: user.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role
       });
       const refreshToken = await tokenService.createRefreshToken(user.id);
-      
-      const { password, ...userWithoutPassword } = user;
       
       const frontendUrl = process.env.FRONTEND_URL;
       if (!frontendUrl) {
         throw new Error('Frontend URL not configured');
       }
       
-      const redirectUrl = new URL(`${frontendUrl}/api/auth/callback`);
-      redirectUrl.searchParams.set('auth', 'success');
-      redirectUrl.searchParams.set('auth_token', accessToken);
-      redirectUrl.searchParams.set('refresh_token', refreshToken);
-      redirectUrl.searchParams.set('user', JSON.stringify(userWithoutPassword));
-      redirectUrl.searchParams.set('returnTo', req.query.returnTo as string || '/dashboard');
-      
-      res.redirect(redirectUrl.toString());
+      // Create session
+      const session = await this.sessionService.createSession(user.id, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'] || 'unknown'
+      });
+
+      // Set secure cookies
+      res.cookie('session_id', session.session_id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+
+      res.cookie('token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000 // 15 minutes
+      });
+
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      // Redirect to frontend with returnTo
+      const returnTo = req.query.returnTo as string || '/dashboard';
+      res.redirect(`${frontendUrl}${returnTo}`);
       
     } catch (error) {
       console.error('LinkedIn callback error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+    }
+  }
+
+  /**
+   * Handles GitHub OAuth callback. It's more complex than the other OAuth
+   * callbacks because GitHub requires a second request to get the user info.
+   */
+  async handleGitHubOAuthCallback(req: Request, res: Response): Promise<void> {
+    try {
+      const { code } = req.query;
+      
+      if (!code) {
+        console.error('No authorization code provided');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+      }
+      
+      const tokenResponse = await axios.post<GitHubTokenResponse>(
+        'https://github.com/login/oauth/access_token',
+        new URLSearchParams({
+          client_id: config.oauth.github.clientId || '',
+          client_secret: config.oauth.github.clientSecret || '',
+          code: code as string,
+          redirect_uri: config.oauth.github.callbackURL
+        }).toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      const { access_token } = tokenResponse.data;
+      
+      if (!access_token) {
+        console.error('No access token received');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
+      }
+      
+      const userInfoResponse = await axios.get<GitHubUserInfo>('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${access_token}`
+        }
+      });
+      
+      const userInfo = userInfoResponse.data;
+      
+      if (!userInfo || !userInfo.id) {
+        console.error('Invalid user info received');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_user_info`);
+      }
+      
+      let user = await userService.getUserByEmail(userInfo.email);
+      
+      if (!user) {
+        await authService.createOAuthUser({
+          email: userInfo.email,
+          firstName: userInfo.name?.split(' ')[0] || userInfo.login,
+          lastName: userInfo.name?.split(' ').slice(1).join(' ') || '',
+          provider: 'github',
+          providerId: userInfo.id.toString(),
+          role: 'user'
+        });
+        user = await userService.getUserByEmail(userInfo.email);
+      }
+      
+      if (!user) {
+        console.error('Failed to create or find user');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=user_creation_failed`);
+      }
+      
+      await userService.updateLastLogin(user.id);
+      const accessToken = authService.generateToken({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      });
+      const refreshToken = await tokenService.createRefreshToken(user.id);
+      
+      const frontendUrl = process.env.FRONTEND_URL;
+      if (!frontendUrl) {
+        throw new Error('Frontend URL not configured');
+      }
+      
+      // Create session
+      const session = await this.sessionService.createSession(user.id, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'] || 'unknown'
+      });
+
+      // Set secure cookies
+      res.cookie('session_id', session.session_id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+
+      res.cookie('token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000 // 15 minutes
+      });
+
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      // Redirect to frontend with returnTo
+      const returnTo = req.query.returnTo as string || '/dashboard';
+      res.redirect(`${frontendUrl}${returnTo}`);
+      
+    } catch (error) {
+      console.error('GitHub callback error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+    }
+  }
+
+  /**
+   * Refreshes the session
+   */
+  async refreshSession(req: RequestWithSession, res: Response): Promise<void> {
+    try {
+      const sessionId = req.cookies.session_id;
+      
+      if (!sessionId) {
+        res.status(401).json({ error: 'No session found' });
+        return;
+      }
+
+      const session = await this.sessionService.getSession(sessionId);
+      
+      if (!session) {
+        res.status(401).json({ error: 'Invalid or expired session' });
+        return;
+      }
+
+      // Create a new session
+      const newSession = await this.sessionService.createSession(session.user_id, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'] || 'unknown'
+      });
+
+      // Set new session cookie
+      res.cookie('session_id', newSession.session_id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+
+      // Set new CSRF token
+      const csrfToken = crypto.randomBytes(32).toString('hex');
+      res.cookie('csrf_token', csrfToken, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+
+      // Store CSRF token in session
+      await this.sessionService.updateSession(newSession.session_id, { csrfToken });
+
+      // Revoke old session
+      await this.sessionService.revokeSession(sessionId);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[AUTH-DEBUG] Session refresh error:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 }

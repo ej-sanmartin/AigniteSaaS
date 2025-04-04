@@ -1,18 +1,18 @@
 import { Router, Request } from 'express';
 import { subscriptionController } from './subscription.controller';
-import { verifyToken } from '../../middleware/auth';
+import { verifySession } from '../../middleware/auth';
 
 const router = Router();
 
 router.get(
   '/status',
-  verifyToken,
+  verifySession,
   (req: Request, res) => subscriptionController.getStatus(req, res)
 );
 
 router.post(
   '/',
-  verifyToken,
+  verifySession,
   (req: Request, res) => subscriptionController.create(req, res)
 );
 

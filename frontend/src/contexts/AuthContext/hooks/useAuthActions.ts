@@ -6,13 +6,17 @@ import api from '@/utils/api';
 import toast from 'react-hot-toast';
 import { useAuthState } from './useAuthState';
 import { useAuthEffects } from './useAuthEffects';
-import Cookies from 'js-cookie';
+
+// In-memory cache for auth status
+let authCache: {
+  user: any | null;
+  timestamp: number;
+} | null = null;
 
 export const useAuthActions = () => {
   const router = useRouter();
   const pathname = usePathname();
   const {
-    setUser,
     setIsLoading,
     setError,
     clearError
@@ -23,33 +27,10 @@ export const useAuthActions = () => {
     try {
       setIsLoading(true);
       clearError();
-      const { data } = await api.post('/auth/login', { email, password });
+      await api.post('/auth/login', { email, password });
       
-      if (data.token) {
-        Cookies.set('token', data.token, {
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          expires: 1 // 1 day
-        });
-      }
-      
-      if (data.refreshToken) {
-        Cookies.set('refreshToken', data.refreshToken, {
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          expires: 7 // 7 days
-        });
-      }
-      
-      if (data.user) {
-        Cookies.set('user', JSON.stringify(data.user), {
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          expires: 1 // 1 day
-        });
-      }
-      
-      setUser(data.user);
+      // Fetch user data after successful login
+      const { data } = await api.get('/auth/check');
       scheduleTokenRefresh();
       
       toast.success('Successfully logged in');
@@ -60,40 +41,18 @@ export const useAuthActions = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setIsLoading, setError, clearError, scheduleTokenRefresh, router]);
+  }, [setIsLoading, setError, clearError, scheduleTokenRefresh, router]);
 
   const signup = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
     try {
       setIsLoading(true);
       clearError();
-      const { data } = await api.post('/auth/signup', { email, password, firstName, lastName });
+      await api.post('/auth/signup', { email, password, firstName, lastName });
       
-      if (data.token) {
-        Cookies.set('token', data.token, {
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          expires: 1 // 1 day
-        });
-      }
-      
-      if (data.refreshToken) {
-        Cookies.set('refreshToken', data.refreshToken, {
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          expires: 7 // 7 days
-        });
-      }
-      
-      if (data.user) {
-        Cookies.set('user', JSON.stringify(data.user), {
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          expires: 1 // 1 day
-        });
-      }
-      
-      setUser(data.user);
+      // Fetch user data after successful signup
+      const { data } = await api.get('/auth/check');
       scheduleTokenRefresh();
+      
       toast.success('Successfully signed up');
       router.push('/dashboard');
     } catch (error) {
@@ -102,34 +61,42 @@ export const useAuthActions = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setIsLoading, setError, clearError, scheduleTokenRefresh, router]);
+  }, [setIsLoading, setError, clearError, scheduleTokenRefresh, router]);
 
   const logout = useCallback(async () => {
     try {
       setIsLoading(true);
       clearError();
       
+      // Wait for backend response
       await api.post('/auth/logout');
-      Cookies.remove('token');
-      Cookies.remove('refreshToken');
-      Cookies.remove('user');
       
-      setUser(null);
+      // Clear all state
       clearRefreshTimeout();
       
+      // Clear any cached data
+      authCache = null;
+      
+      // Clear session-related cookies only
+      ['session_id', 'token', 'refreshToken', 'csrf_token'].forEach(cookieName => {
+        document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      });
+      
       toast.success('Successfully logged out');
-      if (pathname === '/') {
-        window.location.reload();
-      } else {
-        router.push('/');
-      }
+      
+      // Redirect after state is cleared
+      window.location.href = '/';
     } catch (error) {
-      setError({ message: 'Logout failed. Please try again.', code: 'LOGOUT_FAILED' });
-      throw error;
+      console.error('Logout error:', error);
+      setError({ 
+        message: 'Logout failed. Please try again.', 
+        code: 'LOGOUT_FAILED' 
+      });
+      toast.error('Failed to logout. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setIsLoading, setError, clearError, clearRefreshTimeout, router]);
+  }, [setIsLoading, setError, clearError, clearRefreshTimeout]);
 
   return {
     login,

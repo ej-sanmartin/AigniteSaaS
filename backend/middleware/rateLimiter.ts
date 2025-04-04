@@ -65,4 +65,21 @@ export const verifyTokenLimiter: RateLimitRequestHandler = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+});
+
+/**
+ * Rate limiter for token creation and refresh
+ * Limits each IP to 10 token operations per hour
+ */
+export const tokenLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: ONE_HOUR,
+  max: 10,
+  message: {
+    error: 'Too many token operations, please try again later',
+    code: 'TOKEN_RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipFailedRequests: false, // Count failed requests against the rate limit
+  skipSuccessfulRequests: true, // Don't count successful operations against limit
 }); 

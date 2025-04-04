@@ -1,18 +1,25 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { userService } from './user.service';
-import { User, UpdateUserDTO, SafeUser, AuthenticatedRequest } from './user.types';
+import { User, UpdateUserDTO, SafeUser } from './user.types';
 import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
-import { TokenPayload } from './user.types';
 import { verifyEmailService } from '../verify_email/verify_email.service';
 import { authService } from '../auth/auth.service';
 import { tokenService } from '../../services/token/token';
+import { RequestWithSession } from '../../types/express';
+import { SessionService } from '../../services/session/session.service';
 
 export class UserController {
+  private sessionService: SessionService;
+
+  constructor() {
+    this.sessionService = new SessionService();
+  }
+
   /**
    * Handles user registration
    */
-  async createUser(req: Request, res: Response): Promise<void> {
+  async createUser(req: RequestWithSession, res: Response): Promise<void> {
     try {
       const validatedData = createUserSchema.parse(req.body);
       
@@ -40,6 +47,8 @@ export class UserController {
       const accessToken = authService.generateToken({
         id: user.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role
       });
 
@@ -63,14 +72,6 @@ export class UserController {
         sameSite: 'lax',
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
-      res.cookie('user', JSON.stringify(userWithoutPassword), {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
       });
 
       res.status(201).json({
@@ -103,7 +104,7 @@ export class UserController {
   /**
    * Handles getting all users (admin only)
    */
-  async getAllUsers(_req: Request, res: Response): Promise<void> {
+  async getAllUsers(_req: RequestWithSession, res: Response): Promise<void> {
     try {
       const users = await userService.getAllUsers();
       res.json(users);
@@ -119,7 +120,7 @@ export class UserController {
   /**
    * Handles getting a user by ID
    */
-  async getUserById(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getUserById(req: RequestWithSession, res: Response): Promise<void> {
     const user = req.user as User;
     const userId = parseInt(req.params.id);
 
@@ -157,7 +158,7 @@ export class UserController {
   /**
    * Handles updating a user
    */
-  async updateUser(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async updateUser(req: RequestWithSession, res: Response): Promise<void> {
     const { id } = req.params;
     const user = req.user as User;
     const userId = user?.id;
@@ -197,7 +198,7 @@ export class UserController {
   /**
    * Handles deleting a user
    */
-  async deleteUser(req: Request, res: Response): Promise<void> {
+  async deleteUser(req: RequestWithSession, res: Response): Promise<void> {
     const { id } = req.params;
 
     try {
@@ -218,25 +219,83 @@ export class UserController {
   /**
    * Handles getting dashboard stats for a user
    */
-  async getDashboardStats(req: AuthenticatedRequest, res: Response): Promise<void> {
-    const user = req.user as TokenPayload;
-    
-    if (!user?.id) {
-      res.status(401).json({ 
-        message: 'User not authenticated',
-        code: 'UNAUTHORIZED'
-      });
-      return;
-    }
-
+  async getDashboardStats(req: RequestWithSession, res: Response): Promise<void> {
     try {
-      const stats = await userService.getDashboardStats(user.id);
+      const sessionId = req.cookies.session_id;
+      
+      if (!sessionId) {
+        res.status(401).json({ 
+          message: 'No session found',
+          code: 'SESSION_MISSING'
+        });
+        return;
+      }
+
+      const session = await this.sessionService.getSession(sessionId);
+      
+      if (!session) {
+        res.status(401).json({ 
+          message: 'Invalid or expired session',
+          code: 'SESSION_INVALID'
+        });
+        return;
+      }
+
+      const stats = await userService.getDashboardStats(session.user_id);
       res.json(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       res.status(500).json({ 
-        message: 'Error fetching dashboard stats',
-        code: 'DASHBOARD_STATS_ERROR'
+        message: 'Internal server error',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  }
+
+  /**
+   * Gets the current user's profile
+   */
+  async getUserProfile(req: RequestWithSession, res: Response): Promise<void> {
+    try {
+      const sessionId = req.cookies.session_id;
+      
+      if (!sessionId) {
+        res.status(401).json({ 
+          message: 'No session found',
+          code: 'SESSION_MISSING'
+        });
+        return;
+      }
+
+      const session = await this.sessionService.getSession(sessionId);
+      
+      if (!session) {
+        res.status(401).json({ 
+          message: 'Invalid or expired session',
+          code: 'SESSION_INVALID'
+        });
+        return;
+      }
+
+      const user = await userService.getUserById(session.user_id);
+      
+      if (!user) {
+        res.status(401).json({ 
+          message: 'User not found',
+          code: 'USER_NOT_FOUND'
+        });
+        return;
+      }
+
+      // Remove sensitive data
+      const { password, ...userWithoutPassword } = user;
+
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      res.status(500).json({ 
+        message: 'Internal server error',
+        code: 'INTERNAL_ERROR'
       });
     }
   }

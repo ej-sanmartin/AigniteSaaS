@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { User } from '@/types/auth';
 import { useState } from 'react';
 import { 
   HomeIcon, 
@@ -14,7 +15,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
   name: string;
@@ -23,6 +23,7 @@ interface NavItem {
 }
 
 interface SidebarProps {
+  user: User | null;
   onCollapse?: (collapsed: boolean) => void;
 }
 
@@ -34,15 +35,18 @@ const navigation: NavItem[] = [
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];
 
-export function Sidebar({ onCollapse }: SidebarProps) {
+export function Sidebar({ user, onCollapse }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const pathname = usePathname();
-  const { user } = useAuth();
 
   const handleCollapse = (collapsed: boolean) => {
     setIsCollapsed(collapsed);
     onCollapse?.(collapsed);
+  };
+
+  const isActive = (path: string) => {
+    return pathname === path;
   };
 
   return (
@@ -97,14 +101,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
                   key={item.name}
                   href={item.href}
                   className={`group flex items-center px-2 py-2 text-base font-medium rounded-md ${
-                    pathname === item.href
+                    isActive(item.href)
                       ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                   }`}
                 >
                   <item.icon
                     className={`mr-4 h-6 w-6 ${
-                      pathname === item.href
+                      isActive(item.href)
                         ? 'text-gray-500 dark:text-gray-300'
                         : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-400 dark:group-hover:text-gray-300'
                     }`}
@@ -122,7 +126,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
               <div className="flex items-center">
                 <div>
                   <div className="inline-block h-9 w-9 rounded-full bg-gray-300 dark:bg-gray-600 text-center text-gray-600 dark:text-gray-300 uppercase font-medium flex items-center justify-center">
-                    {user?.email.charAt(0) || '?'}
+                    {user?.email?.[0] || '?'}
                   </div>
                 </div>
                 <div className="ml-3">
@@ -130,9 +134,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
                     {user?.firstName && user?.lastName 
                       ? `${user.firstName} ${user.lastName}`
                       : user?.email || 'User'}
-                  </p>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-                    {user?.role || 'Unknown role'}
                   </p>
                 </div>
               </div>
@@ -170,7 +171,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
                     key={item.name}
                     href={item.href}
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      pathname === item.href
+                      isActive(item.href)
                         ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                     }`}
@@ -178,7 +179,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
                   >
                     <item.icon
                       className={`${isCollapsed ? 'mr-0' : 'mr-3'} h-5 w-5 ${
-                        pathname === item.href
+                        isActive(item.href)
                           ? 'text-gray-500 dark:text-gray-300'
                           : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-400 dark:group-hover:text-gray-300'
                       }`}
@@ -195,7 +196,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
                   <div className="flex items-center">
                     <div>
                       <div className="inline-block h-9 w-9 rounded-full bg-gray-300 dark:bg-gray-600 text-center text-gray-600 dark:text-gray-300 uppercase font-medium flex items-center justify-center">
-                        {user?.email.charAt(0) || '?'}
+                        {user?.email?.[0] || '?'}
                       </div>
                     </div>
                     <div className="ml-3">
@@ -203,9 +204,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
                         {user?.firstName && user?.lastName 
                           ? `${user.firstName} ${user.lastName}`
                           : user?.email || 'User'}
-                      </p>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-                        {user?.role || 'Unknown role'}
                       </p>
                     </div>
                   </div>

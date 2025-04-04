@@ -1,7 +1,6 @@
 import { User, AuthError } from '@/types/auth';
 
 export interface AuthContextType {
-  user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: AuthError | null;
@@ -15,7 +14,6 @@ export interface AuthContextType {
   isCheckingAuth: boolean;
   setIsLoading: (loading: boolean) => void;
   setError: (error: AuthError | null) => void;
-  setUser: (user: User | null) => void;
   setIsCheckingAuth: (checking: boolean) => void;
   setRefreshTimeout: (timeout: NodeJS.Timeout | undefined) => void;
 }

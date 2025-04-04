@@ -3,9 +3,14 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
+import type { User } from '@/types/auth';
 
-export function DashboardHeader() {
-  const { user, logout } = useAuth();
+interface DashboardHeaderProps {
+  user: User | null;
+}
+
+export function DashboardHeader({ user }: DashboardHeaderProps) {
+  const { logout } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {

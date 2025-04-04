@@ -4,9 +4,10 @@ export const oAuthUserSchema = z.object({
   email: z.string().email(),
   firstName: z.string(),
   lastName: z.string(),
-  provider: z.enum(['google', 'linkedin', 'github']),
+  provider: z.enum(['local', 'google', 'linkedin', 'github']),
   providerId: z.string(),
-  role: z.string().default('user')
+  role: z.string().default('user'),
+  password: z.undefined()
 });
 
 export type CreateOAuthUserInput = z.infer<typeof oAuthUserSchema>;

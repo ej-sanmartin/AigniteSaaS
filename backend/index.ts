@@ -3,12 +3,9 @@ import './config/env';
 import express from 'express';
 import passport from 'passport';
 import helmet from 'helmet';
-import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import session from 'express-session';
-import pgSession from 'connect-pg-simple';
 import { apiLimiter } from './middleware/rateLimiter';
-import pool from './config/database';
+import { securityHeaders, corsMiddleware } from './middleware/security';
 import authRoutes from './routes/auth/index';
 import verifyEmailRoutes from './routes/verify_email/index';
 import userRoutes from './routes/users/index';
@@ -17,7 +14,7 @@ import stripeWebhookRoutes from './routes/webhooks/stripe/index';
 
 const app = express();
 
-// Security middleware
+// Basic security middleware
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -37,41 +34,20 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "same-origin" }
 }));
 
-// CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  maxAge: 86400 // 24 hours
-}));
+// Custom security middleware
+app.use(securityHeaders);
+app.use(corsMiddleware);
 
+// Body parser and cookie parser
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Session configuration
-app.use(session({
-  store: new (pgSession(session))({
-    pool,
-    tableName: 'session'
-  }),
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(express.urlencoded({ extended: true }));
-
 // Rate limiting
-app.use('/api/', apiLimiter);
+app.use(apiLimiter);
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Routes
 app.use('/api/auth', authRoutes);

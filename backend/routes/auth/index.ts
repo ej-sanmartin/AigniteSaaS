@@ -5,10 +5,45 @@ import { Strategy as OpenIDConnectStrategy, Profile as OpenIDProfile } from 'pas
 import { Strategy as GitHubStrategy, Profile as GitHubProfile } from 'passport-github2';
 import config from '../../config/auth';
 import { authController } from './auth.controller';
-import { authLimiter } from '../../middleware/rateLimiter';
+import { authLimiter, tokenLimiter } from '../../middleware/rateLimiter';
+import { redirectValidation } from '../../middleware/redirectValidation';
 import verifyEmailRouter from '../verify_email';
 import { Router } from 'express';
 import { LinkedInProfile } from './auth.types';
+import { csrfProtection } from '../../middleware/csrf';
+import { userService } from '../users/user.service';
+import { RequestWithSession } from '../../types/express';
+import { SessionService } from '../../services/session/session.service';
+
+const sessionService = new SessionService();
+
+// Passport serialization - create session and store session ID
+passport.serializeUser(async (user: any, done) => {
+  try {
+    const session = await sessionService.createSession(user.id, {
+      ip: '',
+      userAgent: ''
+    });
+    done(null, session.session_id);
+  } catch (error) {
+    done(error);
+  }
+});
+
+// Passport deserialization - validate session and get user
+passport.deserializeUser(async (sessionId: string, done) => {
+  try {
+    const session = await sessionService.getSession(sessionId);
+    if (!session) {
+      return done(null, false);
+    }
+
+    const user = await userService.getUserById(session.user_id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
+});
 
 const router = Router();
 
@@ -26,7 +61,7 @@ const setupPassportStrategies = (): void => {
       authController.handleOAuthUser(profile, 'google', done);
     }));
   } else {
-    console.warn('Google OAuth credentials not configured');
+    console.warn('Google OAuth credentials missing');
   }
 
   if (
@@ -95,7 +130,12 @@ const setupPassportStrategies = (): void => {
       clientSecret: config.oauth.github.clientSecret,
       callbackURL: config.oauth.github.callbackURL,
       scope: ['user:email']
-    }, async (_accessToken: string, _refreshToken: string, profile: GitHubProfile, done: (error: any, user?: any) => void) => {
+    }, async (
+      _accessToken: string,
+      _refreshToken: string,
+      profile: GitHubProfile,
+      done: (error: any, user?: any) => void
+    ) => {
       try {
         if (!profile || !profile.id) {
           return done(new Error('GitHub returned empty or invalid profile'));
@@ -141,7 +181,7 @@ setupPassportStrategies();
 
 // Routes
 router.get('/google', 
-  (_req, res: express.Response, next: express.NextFunction): void => {
+  (_req: express.Request, res: express.Response, next: express.NextFunction): void => {
     if (!config.oauth.google.clientId) {
       res.status(503).json({
         message: 'Google authentication is not configured',
@@ -152,6 +192,7 @@ router.get('/google',
     next();
   },
   authLimiter,
+  redirectValidation,
   passport.authenticate('google', { 
     scope: ['profile', 'email'],
     prompt: 'select_account'
@@ -161,14 +202,18 @@ router.get('/google',
 router.get('/google/callback',
   authLimiter,
   passport.authenticate('google', { 
-    session: false, 
-    failureRedirect: '/login' 
+    session: false,
+    failureRedirect: '/login',
+    failureMessage: true
   }),
-  (req, res) => authController.handleOAuthCallback(req, res, 'google')
+  redirectValidation,
+  csrfProtection,
+  (req: RequestWithSession, res: express.Response) => 
+    authController.handleOAuthCallback(req, res, 'google')
 );
 
 router.get('/linkedin',
-  (_req, res: express.Response, next: express.NextFunction): void => {
+  (_req: express.Request, res: express.Response, next: express.NextFunction): void => {
     if (!config.oauth.linkedin.clientId) {
       res.status(503).json({
         message: 'LinkedIn authentication is not configured',
@@ -179,6 +224,7 @@ router.get('/linkedin',
     next();
   },
   authLimiter,
+  redirectValidation,
   passport.authenticate('openidconnect', {
     session: false,
     scope: ['openid', 'profile', 'email']
@@ -187,12 +233,19 @@ router.get('/linkedin',
 
 router.get('/linkedin/callback',
   authLimiter,
-  (req, res) => authController.handleLinkedInOAuthCallback(req, res)
+  passport.authenticate('openidconnect', {
+    session: false,
+    failureRedirect: '/login',
+    failureMessage: true
+  }),
+  redirectValidation,
+  csrfProtection,
+  (req: RequestWithSession, res: express.Response) => 
+    authController.handleOAuthCallback(req, res, 'linkedin')
 );
 
-// Add GitHub routes
 router.get('/github',
-  (_req, res: express.Response, next: express.NextFunction): void => {
+  (_req: express.Request, res: express.Response, next: express.NextFunction): void => {
     if (!config.oauth.github.clientId) {
       res.status(503).json({
         message: 'GitHub authentication is not configured',
@@ -203,6 +256,7 @@ router.get('/github',
     next();
   },
   authLimiter,
+  redirectValidation,
   passport.authenticate('github', {
     scope: ['user:email'],
     session: false
@@ -211,11 +265,13 @@ router.get('/github',
 
 router.get('/github/callback',
   authLimiter,
+  redirectValidation,
   passport.authenticate('github', {
     session: false,
-    failureRedirect: '/login'
+    failureRedirect: '/login',
+    failureMessage: true
   }),
-  (req, res) => authController.handleOAuthCallback(req, res, 'github')
+  (req: RequestWithSession, res: express.Response) => authController.handleOAuthCallback(req, res, 'github')
 );
 
 router.post('/login', 
@@ -229,6 +285,12 @@ router.post('/logout',
 
 router.get('/check',
   (req, res) => authController.checkAuth(req, res)
+);
+
+router.post('/refresh', 
+  tokenLimiter, 
+  csrfProtection, 
+  (req, res) => authController.refreshToken(req, res)
 );
 
 router.use('/verify', verifyEmailRouter);

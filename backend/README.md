@@ -12,6 +12,7 @@ This is the Node.js backend service that provides REST APIs and business logic i
 - Rate limiting
 - Environment configuration
 - Type-safe development
+- Audit logging with environment-aware handling
 
 ## ⚙️ Requirements
 - Node.js (v18.17.0 or higher)
@@ -62,6 +63,10 @@ npm install
 # Server
 PORT=3001
 NODE_ENV=development
+
+# Audit Logging
+AUDIT_LOGGING_ENABLED=true
+USER_ID_HASH_SALT=your_secure_salt
 
 # Database
 DATABASE_URL=postgresql://user:password@localhost:5432/dbname
@@ -115,6 +120,28 @@ npm start
 - Server should be running at `http://localhost:3001`
 - Test health endpoint: `curl http://localhost:3001/health`
 - Verify database connection through logs
+
+## 🔍 Audit Logging
+
+The system includes environment-aware audit logging:
+
+- **Development Environment**:
+  - Logs to console with full details
+  - Includes metadata for debugging
+  - Uses consistent hashing salt
+  - Controlled by `AUDIT_LOGGING_ENABLED` env var
+
+- **Production Environment**:
+  - No console logging
+  - Validates log entries
+  - Uses secure hashing salt
+  - Prepares for future database storage
+
+To enable/disable audit logging, set `AUDIT_LOGGING_ENABLED` in your `.env` file:
+- `true`: Enable audit logging
+- `false`: Disable audit logging
+
+For secure user ID hashing in production, set `USER_ID_HASH_SALT` in your `.env` file.
 
 ## ⚙️ Environment Variables
 

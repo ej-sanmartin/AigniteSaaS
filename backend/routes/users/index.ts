@@ -1,45 +1,51 @@
-import { Router, Request } from 'express';
+import { Router } from 'express';
 import { userController } from './user.controller';
-import { verifyToken } from '../../middleware/auth';
-import { AuthenticatedRequest } from './user.types';
+import { verifySession } from '../../middleware/auth';
+import { RequestWithSession } from '../../types/express';
 
 const router = Router();
 
 // Public route for user registration
 router.post(
   '/register',
-  (req: Request, res) => userController.createUser(req, res)
+  (req: RequestWithSession, res) => userController.createUser(req, res)
 );
 
 // Protected routes
 router.get(
   '/',
-  verifyToken,
-  (req: Request, res) => userController.getAllUsers(req, res)
+  verifySession,
+  (req: RequestWithSession, res) => userController.getAllUsers(req, res)
 );
 
 router.get(
   '/dashboard-stats',
-  verifyToken,
-  (req: Request, res) => userController.getDashboardStats(req as AuthenticatedRequest, res)
+  verifySession,
+  (req: RequestWithSession, res) => userController.getDashboardStats(req, res)
+);
+
+router.get(
+  '/profile',
+  verifySession,
+  (req: RequestWithSession, res) => userController.getUserProfile(req, res)
 );
 
 router.get(
   '/:id',
-  verifyToken,
-  (req: Request, res) => userController.getUserById(req as AuthenticatedRequest, res)
+  verifySession,
+  (req: RequestWithSession, res) => userController.getUserById(req, res)
 );
 
 router.put(
   '/:id',
-  verifyToken,
-  (req: Request, res) => userController.updateUser(req as AuthenticatedRequest, res)
+  verifySession,
+  (req: RequestWithSession, res) => userController.updateUser(req, res)
 );
 
 router.delete(
   '/:id',
-  verifyToken,
-  (req: Request, res) => userController.deleteUser(req, res)
+  verifySession,
+  (req: RequestWithSession, res) => userController.deleteUser(req, res)
 );
 
-export default router; 
+export default router;
