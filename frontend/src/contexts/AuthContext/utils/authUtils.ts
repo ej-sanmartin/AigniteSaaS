@@ -2,13 +2,6 @@
 
 import { AuthError } from '@/types/auth';
 
-export const addDebugInfo = (message: string, data?: any): string => {
-  if (process.env.NODE_ENV === 'development') {
-    return `${message}${data ? `\nDebug info: ${JSON.stringify(data, null, 2)}` : ''}`;
-  }
-  return message;
-};
-
 export const handleAuthError = (error: any): AuthError => {
   // Handle rate limit errors
   if (error.response?.status === 429) {

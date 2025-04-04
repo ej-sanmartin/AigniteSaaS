@@ -26,9 +26,6 @@ export const protectedPaths = [
   '/settings',
 ];
 
-// Debug mode to prevent redirects
-export const DEBUG_MODE = true;
-
 // Token refresh constants
 export const MAX_RETRY_ATTEMPTS = 3;
 export const INITIAL_RETRY_DELAY = 1000; // 1 second
