@@ -16,6 +16,7 @@ export interface AuthContextType {
   setError: (error: AuthError | null) => void;
   setIsCheckingAuth: (checking: boolean) => void;
   setRefreshTimeout: (timeout: NodeJS.Timeout | undefined) => void;
+  setIsAuthenticated: (authenticated: boolean) => void;
 }
 
 // Paths that require authentication

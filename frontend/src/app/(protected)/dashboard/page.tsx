@@ -13,13 +13,16 @@ import { toast } from 'react-hot-toast';
 import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function DashboardPage() {
-  const { isLoading: isAuthLoading } = useAuth();
+  const { isLoading: isAuthLoading, isAuthenticated } = useAuth();
   const { user: userDetails, isLoading: isUserLoading } = useUser();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const hasShownSignupToast = useRef(false);
+
+  console.log('[DASHBOARD_DEBUG] Auth state:', { isAuthLoading, isAuthenticated });
+  console.log('[DASHBOARD_DEBUG] User state:', { userDetails, isUserLoading });
 
   // Effect to show welcome toast after dashboard is fully loaded
   useEffect(() => {
@@ -52,10 +55,8 @@ export default function DashboardPage() {
       }
     };
 
-    if (!isAuthLoading && !isUserLoading) {
-      fetchStats();
-    }
-  }, [isAuthLoading, isUserLoading]);
+    fetchStats();
+  }, []);
 
   // Show loading state while auth is loading
   if (isAuthLoading) {

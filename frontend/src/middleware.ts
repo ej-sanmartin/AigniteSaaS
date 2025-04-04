@@ -51,7 +51,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If user is authenticated and tries to access auth paths, redirect to dashboard
+  // If the path is an auth path and there is a session, redirect to dashboard
   if (isAuthPath && session) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }

@@ -3,6 +3,7 @@
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { UserProvider } from '@/contexts/UserContext';
 import { Toaster } from 'react-hot-toast';
 import { ToastHandler } from '@/components/ToastHandler';
 import { NavBar } from '@/components/landing/NavBar';
@@ -31,12 +32,14 @@ export function RootLayoutClient({
       <body className={`${inter.className} antialiased bg-white dark:bg-gray-900 flex flex-col min-h-screen`}>
         <ThemeProvider>
           <AuthProvider>
-            {!isProtectedRoute && <NavBar />}
-            <main className="flex-1">
-              {children}
-            </main>
-            {!isProtectedRoute && <Footer />}
-            <CookieConsent />
+            <UserProvider>
+              {!isProtectedRoute && <NavBar />}
+              <main className="flex-1">
+                {children}
+              </main>
+              {!isProtectedRoute && <Footer />}
+              <CookieConsent />
+            </UserProvider>
           </AuthProvider>
         </ThemeProvider>
         <ToastHandler />

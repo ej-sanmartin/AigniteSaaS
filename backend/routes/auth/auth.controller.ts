@@ -372,31 +372,31 @@ export class AuthController {
       const sessionId = req.cookies.session_id;
       
       if (!sessionId) {
-        res.status(401).json({ error: 'No session found' });
+        res.status(401).json({ isValid: false, error: 'No session found' });
         return;
       }
 
       const session = await this.sessionService.getSession(sessionId);
       
       if (!session) {
-        res.status(401).json({ error: 'Invalid or expired session' });
+        res.status(401).json({ isValid: false, error: 'Invalid or expired session' });
         return;
       }
 
-      const user = await userService.getUserById(session.user_id);
-      
-      if (!user) {
-        res.status(401).json({ error: 'User not found' });
-        return;
-      }
+      // Log successful session validation
+      auditService.logAuthEvent(
+        auditService.createAuditEvent(req, {
+          type: 'session_create',
+          userId: session.user_id,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          status: 'success',
+        })
+      );
 
-      // Remove sensitive data
-      const { password, ...userWithoutPassword } = user;
-
-      res.json({ user: userWithoutPassword });
+      res.json({ isValid: true });
     } catch (error) {
       console.error('[AUTH-DEBUG] Check auth error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ isValid: false, error: 'Internal server error' });
     }
   }
 

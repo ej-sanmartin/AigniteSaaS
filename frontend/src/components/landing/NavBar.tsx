@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUser } from '@/contexts/UserContext';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
-import type { User } from '@/types/auth';
 
-interface NavBarProps {
-  user: User | null;
-}
-
-export function NavBar({ user }: NavBarProps) {
+export function NavBar() {
   const { logout } = useAuth();
+  const { user } = useUser();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 

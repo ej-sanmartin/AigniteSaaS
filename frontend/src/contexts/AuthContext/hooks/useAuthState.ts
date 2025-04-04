@@ -1,18 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import api from '@/utils/api';
 import { AuthContextType } from '../utils/constants';
 import { AuthError } from '@/types/auth';
 
-interface AuthCache {
-  isAuthenticated: boolean;
-  timestamp: number;
-}
-
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-let authCache: AuthCache | null = null;
+// List of public routes that should not redirect
+const publicRoutes = ['/', '/blog', '/pricing', '/about', '/contact'];
 
 export const useAuthState = (): AuthContextType => {
   const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +16,7 @@ export const useAuthState = (): AuthContextType => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
   const refreshTimeout = useRef<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   const clearRefreshTimeout = () => {
     if (refreshTimeout.current) {
@@ -31,66 +27,45 @@ export const useAuthState = (): AuthContextType => {
 
   const scheduleTokenRefresh = () => {
     clearRefreshTimeout();
-    // Schedule refresh 5 minutes before token expiry
     refreshTimeout.current = setTimeout(() => {
-      checkAuth();
+      checkAuth(false);
     }, 55 * 60 * 1000); // 55 minutes
   };
 
-  const checkAuth = async (): Promise<boolean> => {
+  const checkAuth = async (shouldRedirect = false): Promise<boolean> => {
     try {
       setIsLoading(true);
       setIsCheckingAuth(true);
       setError(null);
 
-      // Check if we have a valid cached result
-      if (authCache && Date.now() - authCache.timestamp < CACHE_DURATION) {
-        setIsAuthenticated(authCache.isAuthenticated);
-        setIsLoading(false);
-        setIsCheckingAuth(false);
-        return authCache.isAuthenticated;
-      }
-
-      // Check if we have a session cookie
-      const hasSession = document.cookie.includes('session_id=');
-      if (!hasSession) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        setIsCheckingAuth(false);
-        return false;
-      }
-
-      // Check if we're on a public route
-      const isPublicRoute = pathname === '/login' || pathname === '/register';
-      if (isPublicRoute) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        setIsCheckingAuth(false);
-        return false;
-      }
+      // Check if current route is public
+      const isPublicRoute = publicRoutes.some(route => pathname?.startsWith(route));
 
       // Validate session with backend
-      const response = await api.get('/auth/validate-session');
-      const isValid = response.data.isValid;
+      const response = await api.get('/auth/check');
+      const { isValid, error: authError } = response.data;
 
-      // Update cache
-      authCache = {
-        isAuthenticated: isValid,
-        timestamp: Date.now()
-      };
-
-      setIsAuthenticated(isValid);
-      if (isValid) {
-        scheduleTokenRefresh();
+      if (!isValid) {
+        setIsAuthenticated(false);
+        if (authError) {
+          setError({ message: authError, code: 'SESSION_ERROR' });
+        }
+        // Only redirect on protected routes
+        if (shouldRedirect && !isPublicRoute) {
+          router.push('/login');
+        }
+        return false;
       }
-      return isValid;
-    } catch (error) {
-      console.error('[AUTH] Session validation error:', error);
+
+      setIsAuthenticated(true);
+      scheduleTokenRefresh();
+      return true;
+    } catch (err) {
+      setIsAuthenticated(false);
       setError({ 
         message: 'Failed to validate session', 
-        code: 'SESSION_ERROR' 
+        code: 'NETWORK_ERROR' 
       });
-      setIsAuthenticated(false);
       return false;
     } finally {
       setIsLoading(false);
@@ -98,63 +73,68 @@ export const useAuthState = (): AuthContextType => {
     }
   };
 
+  // Initial auth check - no redirects
   useEffect(() => {
-    checkAuth();
+    checkAuth(false);
     return () => {
       clearRefreshTimeout();
     };
-  }, [pathname]);
+  }, []);
 
   return {
     isLoading,
-    setIsLoading,
     isAuthenticated,
     error,
-    setError,
-    clearError: () => setError(null),
     isCheckingAuth,
-    setIsCheckingAuth,
-    clearRefreshTimeout,
-    scheduleTokenRefresh,
-    setRefreshTimeout: (timeout: NodeJS.Timeout | null) => {
-      refreshTimeout.current = timeout;
-    },
+    checkAuth,
     login: async (email: string, password: string) => {
       try {
         const response = await api.post('/auth/login', { email, password });
         if (response.data.success) {
           setIsAuthenticated(true);
-          // Clear cache to force revalidation
-          authCache = null;
           scheduleTokenRefresh();
         }
-        return response.data;
-      } catch (error) {
-        console.error('[AUTH] Login error:', error);
-        throw error;
+      } catch (err) {
+        setError({ 
+          message: 'Login failed', 
+          code: 'LOGIN_ERROR' 
+        });
+        throw err;
+      }
+    },
+    signup: async (email: string, password: string, firstName: string, lastName: string) => {
+      try {
+        await api.post('/auth/register', { email, password, firstName, lastName });
+      } catch (err) {
+        setError({ 
+          message: 'Signup failed', 
+          code: 'SIGNUP_ERROR' 
+        });
+        throw err;
       }
     },
     logout: async () => {
       try {
         await api.post('/auth/logout');
         setIsAuthenticated(false);
-        // Clear cache
-        authCache = null;
         clearRefreshTimeout();
-      } catch (error) {
-        console.error('[AUTH] Logout error:', error);
-        throw error;
+      } catch (err) {
+        setError({ 
+          message: 'Logout failed', 
+          code: 'LOGOUT_ERROR' 
+        });
+        throw err;
       }
     },
-    signup: async (email: string, password: string) => {
-      try {
-        const response = await api.post('/auth/register', { email, password });
-        return response.data;
-      } catch (error) {
-        console.error('[AUTH] Signup error:', error);
-        throw error;
-      }
+    clearError: () => setError(null),
+    scheduleTokenRefresh,
+    clearRefreshTimeout,
+    setIsLoading,
+    setError,
+    setIsCheckingAuth,
+    setRefreshTimeout: (timeout: NodeJS.Timeout | undefined) => {
+      refreshTimeout.current = timeout || null;
     },
-    checkAuth
+    setIsAuthenticated
   };
 }; 

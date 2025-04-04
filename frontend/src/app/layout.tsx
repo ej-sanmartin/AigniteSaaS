@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import '@/styles/globals.css';
 import { RootLayoutClient } from '@/components/RootLayoutClient';
 import { Inter } from 'next/font/google';
-import { UserProvider } from '@/contexts/UserContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -70,8 +69,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <UserProvider>
-      <RootLayoutClient>{children}</RootLayoutClient>
-    </UserProvider>
+    <RootLayoutClient>{children}</RootLayoutClient>
   );
 } 
