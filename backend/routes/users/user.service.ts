@@ -221,7 +221,7 @@ export class UserService {
           created_at as "accountCreated",
           CASE 
             WHEN subscription_status IS NOT NULL THEN subscription_status
-            ELSE 'active'
+            ELSE 'inactive'
           END as "subscriptionStatus"
         FROM users 
         WHERE id = $1
