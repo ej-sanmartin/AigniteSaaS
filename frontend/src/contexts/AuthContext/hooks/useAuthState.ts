@@ -1,65 +1,36 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useState, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/utils/api';
 import { AuthContextType } from '../utils/constants';
 import { AuthError } from '@/types/auth';
 
-// List of public routes that should not redirect
-const publicRoutes = ['/', '/blog', '/pricing', '/about', '/contact'];
-
 export const useAuthState = (): AuthContextType => {
-  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
-  const refreshTimeout = useRef<NodeJS.Timeout | null>(null);
-  const pathname = usePathname();
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
-  const clearRefreshTimeout = () => {
-    if (refreshTimeout.current) {
-      clearTimeout(refreshTimeout.current);
-      refreshTimeout.current = null;
+  const clearRefreshTimeout = useCallback(() => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
     }
+  }, []);
+
+  const setRefreshTimeout = (timeout: NodeJS.Timeout | null) => {
+    refreshTimeoutRef.current = timeout;
   };
 
-  const scheduleTokenRefresh = () => {
-    clearRefreshTimeout();
-    refreshTimeout.current = setTimeout(() => {
-      checkAuth(false);
-    }, 55 * 60 * 1000); // 55 minutes
-  };
-
-  const checkAuth = async (shouldRedirect = false): Promise<boolean> => {
+  const checkAuth = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
-      setIsCheckingAuth(true);
-      setError(null);
-
-      // Check if current route is public
-      const isPublicRoute = publicRoutes.some(route => pathname?.startsWith(route));
-
-      // Validate session with backend
       const response = await api.get('/auth/check');
-      const { isValid, error: authError } = response.data;
-
-      if (!isValid) {
-        setIsAuthenticated(false);
-        if (authError) {
-          setError({ message: authError, code: 'SESSION_ERROR' });
-        }
-        // Only redirect on protected routes
-        if (shouldRedirect && !isPublicRoute) {
-          router.push('/login');
-        }
-        return false;
-      }
-
-      setIsAuthenticated(true);
-      scheduleTokenRefresh();
-      return true;
+      const isValid = response.status === 200;
+      setIsAuthenticated(isValid);
+      return isValid;
     } catch (err) {
       setIsAuthenticated(false);
       setError({ 
@@ -69,72 +40,103 @@ export const useAuthState = (): AuthContextType => {
       return false;
     } finally {
       setIsLoading(false);
-      setIsCheckingAuth(false);
     }
   };
 
-  // Initial auth check - no redirects
-  useEffect(() => {
-    checkAuth(false);
-    return () => {
+  const login = async (email: string, password: string): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await api.post('/auth/login', { email, password });
+      const isValid = await checkAuth();
+      if (isValid) {
+        setIsAuthenticated(true);
+        scheduleTokenRefresh();
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError({ 
+        message: 'Login failed', 
+        code: 'LOGIN_ERROR' 
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signup = async (email: string, password: string, firstName: string, lastName: string): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await api.post('/auth/register', { email, password, firstName, lastName });
+      const isValid = await checkAuth();
+      if (isValid) {
+        setIsAuthenticated(true);
+        scheduleTokenRefresh();
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError({ 
+        message: 'Signup failed', 
+        code: 'SIGNUP_ERROR' 
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await api.post('/auth/logout');
+      setIsAuthenticated(false);
       clearRefreshTimeout();
-    };
-  }, []);
+      router.push('/');
+    } catch (err) {
+      setError({ 
+        message: 'Failed to logout', 
+        code: 'LOGOUT_FAILED' 
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const scheduleTokenRefresh = () => {
+    clearRefreshTimeout();
+    const timeout = setTimeout(async () => {
+      try {
+        await api.post('/auth/refresh');
+        scheduleTokenRefresh();
+      } catch (error) {
+        setIsAuthenticated(false);
+        setError({ 
+          message: 'Session expired. Please login again.', 
+          code: 'SESSION_EXPIRED' 
+        });
+      }
+    }, 55 * 60 * 1000); // 55 minutes
+    setRefreshTimeout(timeout);
+  };
 
   return {
-    isLoading,
     isAuthenticated,
-    error,
-    isCheckingAuth,
-    checkAuth,
-    login: async (email: string, password: string) => {
-      try {
-        const response = await api.post('/auth/login', { email, password });
-        if (response.data.success) {
-          setIsAuthenticated(true);
-          scheduleTokenRefresh();
-        }
-      } catch (err) {
-        setError({ 
-          message: 'Login failed', 
-          code: 'LOGIN_ERROR' 
-        });
-        throw err;
-      }
-    },
-    signup: async (email: string, password: string, firstName: string, lastName: string) => {
-      try {
-        await api.post('/auth/register', { email, password, firstName, lastName });
-      } catch (err) {
-        setError({ 
-          message: 'Signup failed', 
-          code: 'SIGNUP_ERROR' 
-        });
-        throw err;
-      }
-    },
-    logout: async () => {
-      try {
-        await api.post('/auth/logout');
-        setIsAuthenticated(false);
-        clearRefreshTimeout();
-      } catch (err) {
-        setError({ 
-          message: 'Logout failed', 
-          code: 'LOGOUT_ERROR' 
-        });
-        throw err;
-      }
-    },
-    clearError: () => setError(null),
-    scheduleTokenRefresh,
-    clearRefreshTimeout,
+    setIsAuthenticated,
+    isLoading,
     setIsLoading,
+    error,
     setError,
-    setIsCheckingAuth,
-    setRefreshTimeout: (timeout: NodeJS.Timeout | undefined) => {
-      refreshTimeout.current = timeout || null;
-    },
-    setIsAuthenticated
+    clearError: () => setError(null),
+    checkAuth,
+    login,
+    signup,
+    logout,
+    refreshTimeout: refreshTimeoutRef.current,
+    setRefreshTimeout,
+    clearRefreshTimeout
   };
 }; 

@@ -1,22 +1,21 @@
 import { User, AuthError } from '@/types/auth';
 
 export interface AuthContextType {
-  isLoading: boolean;
   isAuthenticated: boolean;
-  error: AuthError | null;
+  setIsAuthenticated: (value: boolean) => void;
+  isLoading: boolean;
+  setIsLoading: (value: boolean) => void;
+  error: { message: string; code?: string } | null;
+  setError: (error: { message: string; code?: string } | null) => void;
+  clearError: () => void;
+  checkAuth: () => Promise<boolean>;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<boolean>;
-  clearError: () => void;
-  scheduleTokenRefresh: () => void;
+  refreshTimeout: NodeJS.Timeout | null;
+  setRefreshTimeout: (timeout: NodeJS.Timeout | null) => void;
   clearRefreshTimeout: () => void;
-  isCheckingAuth: boolean;
-  setIsLoading: (loading: boolean) => void;
-  setError: (error: AuthError | null) => void;
-  setIsCheckingAuth: (checking: boolean) => void;
-  setRefreshTimeout: (timeout: NodeJS.Timeout | undefined) => void;
-  setIsAuthenticated: (authenticated: boolean) => void;
+  scheduleTokenRefresh: () => void;
 }
 
 // Paths that require authentication

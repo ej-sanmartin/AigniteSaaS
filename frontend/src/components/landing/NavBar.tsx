@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAuth } from '@/contexts/AuthContext';
 import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 
 export function NavBar() {
+  const { user, isLoading } = useUser();
   const { logout } = useAuth();
-  const { user } = useUser();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -72,7 +72,7 @@ export function NavBar() {
             </Link>
           </div>
           <div className="flex items-center space-x-4">
-            {user ? (
+            {!isLoading && user ? (
               <>
                 <Link
                   href="/dashboard"

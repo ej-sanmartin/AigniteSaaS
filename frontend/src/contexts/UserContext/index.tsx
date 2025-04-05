@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { User } from '@/types/auth';
+import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import api from '@/utils/api';
-import { useAuth } from './AuthContext';
+import type { User } from '@/types/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserContextType {
   user: User | null;
@@ -12,24 +12,19 @@ interface UserContextType {
   refreshUser: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType>({
-  user: null,
-  isLoading: true,
-  error: null,
-  refreshUser: async () => {},
-});
+const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
+export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, isCheckingAuth } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const fetchUser = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const { data } = await api.get('/users/profile');
+      const { data } = await api.get('/users/profile/');
       setUser(data);
     } catch (err) {
       setError('Failed to fetch user data');
@@ -40,30 +35,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshUser = async () => {
-    if (isAuthenticated && !isCheckingAuth) {
+    if (isAuthenticated) {
       await fetchUser();
     }
   };
 
-  // Handle initial mount and auth state changes
+  // Listen for auth state changes
   useEffect(() => {
-    if (!isCheckingAuth) {
-      if (isAuthenticated) {
-        fetchUser();
-      } else {
-        setUser(null);
-        setError(null);
-        setIsLoading(false);
-      }
+    if (isAuthenticated) {
+      fetchUser();
+    } else {
+      // Clear user data when not authenticated
+      setUser(null);
+      setError(null);
     }
-  }, [isAuthenticated, isCheckingAuth]);
+  }, [isAuthenticated]);
 
   return (
     <UserContext.Provider value={{ user, isLoading, error, refreshUser }}>
       {children}
     </UserContext.Provider>
   );
-}
+};
 
 export const useUser = () => {
   const context = useContext(UserContext);

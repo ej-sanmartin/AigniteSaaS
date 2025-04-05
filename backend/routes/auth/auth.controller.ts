@@ -372,14 +372,14 @@ export class AuthController {
       const sessionId = req.cookies.session_id;
       
       if (!sessionId) {
-        res.status(401).json({ isValid: false, error: 'No session found' });
+        res.status(401).end();
         return;
       }
 
       const session = await this.sessionService.getSession(sessionId);
       
       if (!session) {
-        res.status(401).json({ isValid: false, error: 'Invalid or expired session' });
+        res.status(401).end();
         return;
       }
 
@@ -393,10 +393,10 @@ export class AuthController {
         })
       );
 
-      res.json({ isValid: true });
+      res.status(200).end();
     } catch (error) {
       console.error('[AUTH-DEBUG] Check auth error:', error);
-      res.status(500).json({ isValid: false, error: 'Internal server error' });
+      res.status(500).end();
     }
   }
 

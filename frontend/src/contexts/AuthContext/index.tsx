@@ -1,27 +1,36 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useMemo } from 'react';
+import { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useAuthState } from './hooks/useAuthState';
-import { useAuthActions } from './hooks/useAuthActions';
 import { useAuthEffects } from './hooks/useAuthEffects';
-import { AuthContextType } from './utils/constants';
+
+export interface AuthContextType {
+  isAuthenticated: boolean;
+  setIsAuthenticated: (value: boolean) => void;
+  isLoading: boolean;
+  setIsLoading: (value: boolean) => void;
+  error: { message: string; code?: string } | null;
+  setError: (error: { message: string; code?: string } | null) => void;
+  clearError: () => void;
+  checkAuth: () => Promise<boolean>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshTimeout: NodeJS.Timeout | null;
+  clearRefreshTimeout: () => void;
+  scheduleTokenRefresh: () => void;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const state = useAuthState();
-  const actions = useAuthActions();
-  const effects = useAuthEffects();
+  const authState = useAuthState();
+  const authEffects = useAuthEffects();
 
-  const value = useMemo(() => ({
-    ...state,
-    ...actions,
-    ...effects,
-    isAuthenticated: state.isAuthenticated
-  }), [state, actions, effects]);
+  const contextValue = { ...authState, ...authEffects };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

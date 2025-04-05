@@ -14,6 +14,7 @@ import { csrfProtection } from '../../middleware/csrf';
 import { userService } from '../users/user.service';
 import { RequestWithSession } from '../../types/express';
 import { SessionService } from '../../services/session/session.service';
+import { verifySession } from '../../middleware/auth';
 
 const sessionService = new SessionService();
 
@@ -284,6 +285,8 @@ router.post('/logout',
 );
 
 router.get('/check',
+  authLimiter,
+  verifySession,
   (req, res) => authController.checkAuth(req, res)
 );
 

@@ -1,9 +1,7 @@
 'use client';
 
 import { Inter } from 'next/font/google';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import { UserProvider } from '@/contexts/UserContext';
+import { RootProviders } from './RootProviders';
 import { Toaster } from 'react-hot-toast';
 import { ToastHandler } from '@/components/ToastHandler';
 import { NavBar } from '@/components/landing/NavBar';
@@ -21,27 +19,27 @@ export function RootLayoutClient({
 }: {
   children: React.ReactNode;
 }) {
+  console.log('RootLayoutClient: Component mounting');
   const pathname = usePathname();
   const isProtectedRoute = pathname?.startsWith('/dashboard') || 
                           pathname?.startsWith('/profile') || 
                           pathname?.startsWith('/settings') ||
                           pathname?.startsWith('/subscription');
 
+  console.log('RootLayoutClient: pathname:', pathname);
+  console.log('RootLayoutClient: isProtectedRoute:', isProtectedRoute);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} antialiased bg-white dark:bg-gray-900 flex flex-col min-h-screen`}>
-        <ThemeProvider>
-          <AuthProvider>
-            <UserProvider>
-              {!isProtectedRoute && <NavBar />}
-              <main className="flex-1">
-                {children}
-              </main>
-              {!isProtectedRoute && <Footer />}
-              <CookieConsent />
-            </UserProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <RootProviders>
+          {!isProtectedRoute && <NavBar />}
+          <main className="flex-1">
+            {children}
+          </main>
+          {!isProtectedRoute && <Footer />}
+          <CookieConsent />
+        </RootProviders>
         <ToastHandler />
         <Toaster
           position="top-right"

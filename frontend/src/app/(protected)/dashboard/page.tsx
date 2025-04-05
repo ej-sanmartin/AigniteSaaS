@@ -3,7 +3,6 @@
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { UserInfoCard } from '@/components/dashboard/UserInfoCard';
 import { SubscriptionCard } from '@/components/dashboard/SubscriptionCard';
-import { useAuth } from '@/contexts/AuthContext';
 import { useUser } from '@/contexts/UserContext';
 import { useState, useEffect, useRef } from 'react';
 import api from '@/utils/api';
@@ -11,13 +10,14 @@ import type { DashboardStats } from '@/types/dashboard';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { AuthCallbackHandler } from '@/components/auth/AuthCallbackHandler';
 
 export default function DashboardPage() {
-  const { isLoading: isAuthLoading } = useAuth();
   const { user: userDetails, isLoading: isUserLoading } = useUser();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const searchParams = useSearchParams();
   const hasShownSignupToast = useRef(false);
 
@@ -49,16 +49,21 @@ export default function DashboardPage() {
       }
     };
 
-    fetchStats();
-  }, []);
+    if (isAuthInitialized) {
+      fetchStats();
+    }
+  }, [isAuthInitialized]);
 
-  // Show loading state while auth is loading
-  if (isAuthLoading) {
+  // Show loading state while auth is initializing
+  if (!isAuthInitialized) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader user={null} />
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-          <LoadingState message="Verifying authentication..." />
+          <AuthCallbackHandler 
+            onSuccess={() => setIsAuthInitialized(true)}
+            onError={() => setError('Authentication failed. Please try again.')}
+          />
         </main>
       </div>
     );

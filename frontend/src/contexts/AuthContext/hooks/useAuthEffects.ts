@@ -8,16 +8,15 @@ import { TOKEN_REFRESH_INTERVAL } from '../utils/constants';
 export const useAuthEffects = () => {
   const {
     setError,
-    clearError,
     setRefreshTimeout,
     clearRefreshTimeout,
     setIsLoading
   } = useAuthState();
 
   const isRefreshing = useRef(false);
-  const isSetupComplete = useRef(false);
 
   const scheduleTokenRefresh = useCallback(() => {
+    console.log('AuthEffects: Scheduling token refresh');
     if (isRefreshing.current) return;
     clearRefreshTimeout();
 
@@ -27,6 +26,7 @@ export const useAuthEffects = () => {
 
       try {
         await api.post('/auth/refresh');
+        console.log('AuthEffects: Token refreshed successfully');
         
         // Schedule next refresh
         const nextTimeout = setTimeout(() => {
@@ -36,6 +36,7 @@ export const useAuthEffects = () => {
         
         setRefreshTimeout(nextTimeout);
       } catch (error) {
+        console.error('AuthEffects: Token refresh failed:', error);
         setError({ 
           message: 'Session expired. Please login again.', 
           code: 'SESSION_EXPIRED' 
@@ -48,29 +49,14 @@ export const useAuthEffects = () => {
     setRefreshTimeout(timeout);
   }, [clearRefreshTimeout, setRefreshTimeout, setError]);
 
-  // Handle token refresh
+  // Cleanup on unmount
   useEffect(() => {
-    // Check if we have a session cookie
-    const hasSession = document.cookie.includes('session_id=');
-    
-    if (hasSession && !isSetupComplete.current && !isRefreshing.current) {
-      isSetupComplete.current = true;
-      // Start refresh immediately
-      scheduleTokenRefresh();
-    }
-
-    // If no session, reset the setup flag
-    if (!hasSession) {
-      isSetupComplete.current = false;
-      clearRefreshTimeout();
-    }
-
-    // Cleanup on unmount
     return () => {
+      console.log('AuthEffects: Cleaning up');
       clearRefreshTimeout();
       isRefreshing.current = false;
     };
-  }, [scheduleTokenRefresh, clearRefreshTimeout]);
+  }, [clearRefreshTimeout]);
 
   return {
     scheduleTokenRefresh,

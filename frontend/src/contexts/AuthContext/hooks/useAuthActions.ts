@@ -59,6 +59,13 @@ export const useAuthActions = () => {
       setIsLoading(true);
       clearError();
       await api.post('/auth/logout');
+      
+      // Clear all auth-related cookies
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.split('=');
+        document.cookie = `${name.trim()}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      });
+      
       setIsAuthenticated(false);
       clearRefreshTimeout();
       toast.success('Successfully logged out');
