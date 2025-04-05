@@ -9,7 +9,6 @@ import { useAuthEffects } from './useAuthEffects';
 
 export const useAuthActions = () => {
   const router = useRouter();
-  const pathname = usePathname();
   const {
     setIsLoading,
     setError,
