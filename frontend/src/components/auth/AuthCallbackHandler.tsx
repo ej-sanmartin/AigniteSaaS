@@ -18,27 +18,20 @@ export function AuthCallbackHandler({ onSuccess, onError }: AuthCallbackHandlerP
 
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log('AuthCallbackHandler: Starting auth initialization');
-      
       try {
         setIsInitializing(true);
         const isValid = await checkAuth();
-        console.log('AuthCallbackHandler: Auth check result:', isValid);
         
         if (isValid) {
-          console.log('AuthCallbackHandler: Auth valid, scheduling refresh');
           scheduleTokenRefresh();
           // Small delay to ensure auth state propagates
           await new Promise(resolve => setTimeout(resolve, 500));
-          console.log('AuthCallbackHandler: Auth initialization complete');
           onSuccess?.();
         } else {
-          console.log('AuthCallbackHandler: Auth invalid, redirecting to login');
           onError?.();
           router.push('/login');
         }
       } catch (error) {
-        console.error('AuthCallbackHandler: Auth check failed:', error);
         onError?.();
         router.push('/login');
       } finally {

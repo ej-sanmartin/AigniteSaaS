@@ -16,7 +16,6 @@ export const useAuthEffects = () => {
   const isRefreshing = useRef(false);
 
   const scheduleTokenRefresh = useCallback(() => {
-    console.log('AuthEffects: Scheduling token refresh');
     if (isRefreshing.current) return;
     clearRefreshTimeout();
 
@@ -26,7 +25,6 @@ export const useAuthEffects = () => {
 
       try {
         await api.post('/auth/refresh');
-        console.log('AuthEffects: Token refreshed successfully');
         
         // Schedule next refresh
         const nextTimeout = setTimeout(() => {
@@ -36,7 +34,6 @@ export const useAuthEffects = () => {
         
         setRefreshTimeout(nextTimeout);
       } catch (error) {
-        console.error('AuthEffects: Token refresh failed:', error);
         setError({ 
           message: 'Session expired. Please login again.', 
           code: 'SESSION_EXPIRED' 
@@ -52,7 +49,6 @@ export const useAuthEffects = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log('AuthEffects: Cleaning up');
       clearRefreshTimeout();
       isRefreshing.current = false;
     };

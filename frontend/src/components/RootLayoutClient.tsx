@@ -19,15 +19,11 @@ export function RootLayoutClient({
 }: {
   children: React.ReactNode;
 }) {
-  console.log('RootLayoutClient: Component mounting');
   const pathname = usePathname();
   const isProtectedRoute = pathname?.startsWith('/dashboard') || 
                           pathname?.startsWith('/profile') || 
                           pathname?.startsWith('/settings') ||
                           pathname?.startsWith('/subscription');
-
-  console.log('RootLayoutClient: pathname:', pathname);
-  console.log('RootLayoutClient: isProtectedRoute:', isProtectedRoute);
 
   return (
     <html lang="en" suppressHydrationWarning>

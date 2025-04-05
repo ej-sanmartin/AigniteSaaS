@@ -50,7 +50,6 @@ export const verifySession = async (
 
     next();
   } catch (error) {
-    console.error('[AUTH-DEBUG] Session verification error:', error);
     return res.status(500).json({ 
       message: 'Internal server error',
       code: 'INTERNAL_ERROR'
@@ -101,7 +100,6 @@ export const verifyRole = (allowedRoles: UserRole[]) => {
 
       next();
     } catch (error) {
-      console.error('[AUTH-DEBUG] Role verification error:', error);
       return res.status(500).json({ 
         message: 'Internal server error',
         code: 'INTERNAL_ERROR'

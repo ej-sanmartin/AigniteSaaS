@@ -171,9 +171,7 @@ export class AuthController {
       );
 
       res.redirect(`${frontendUrl}${redirectPath}`);
-    } catch (error) {
-      console.error('OAuth callback error:', error);
-      
+    } catch (error) {      
       // Log failed OAuth completion
       auditService.logAuthEvent(
         auditService.createAuditEvent(req, {
@@ -395,7 +393,6 @@ export class AuthController {
 
       res.status(200).end();
     } catch (error) {
-      console.error('[AUTH-DEBUG] Check auth error:', error);
       res.status(500).end();
     }
   }
@@ -695,7 +692,6 @@ export class AuthController {
 
       res.json({ success: true });
     } catch (error) {
-      console.error('[AUTH-DEBUG] Session refresh error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }
