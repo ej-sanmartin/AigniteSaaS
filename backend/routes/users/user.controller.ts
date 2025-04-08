@@ -34,7 +34,8 @@ export class UserController {
         lastName: validatedData.lastName
       });
 
-      // Try to send verification email, but don't block if it fails
+      // Try to send verification email, but don't block if it fails. That will
+      // be logged and retried later, if needed.
       try {
         await verifyEmailService.createVerificationToken(user.id);
       } catch (emailError) {
@@ -296,6 +297,81 @@ export class UserController {
       res.status(500).json({ 
         message: 'Internal server error',
         code: 'INTERNAL_ERROR'
+      });
+    }
+  }
+
+  /**
+   * Gets the current user's avatar URL
+   */
+  async getAvatar(req: RequestWithSession, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        res.status(401).json({ 
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED'
+        });
+        return;
+      }
+
+      const avatarUrl = await userService.getAvatarUrl(userId);
+      
+      if (!avatarUrl) {
+        res.status(404).json({ 
+          message: 'No avatar found',
+          code: 'AVATAR_NOT_FOUND'
+        });
+        return;
+      }
+
+      res.json({ avatarUrl });
+    } catch (error) {
+      console.error('Error getting avatar:', error);
+      res.status(500).json({ 
+        message: 'Failed to get avatar',
+        code: 'AVATAR_FETCH_ERROR'
+      });
+    }
+  }
+
+  /**
+   * Uploads a new avatar for the current user
+   */
+  async uploadAvatar(req: RequestWithSession, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        res.status(401).json({ 
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED'
+        });
+        return;
+      }
+
+      const file = req.file;
+      
+      if (!file) {
+        res.status(400).json({ 
+          message: 'No file uploaded',
+          code: 'NO_FILE'
+        });
+        return;
+      }
+
+      await userService.uploadUserAvatar(userId, file.buffer);
+      
+      res.json({ 
+        message: 'Avatar uploaded successfully',
+        code: 'AVATAR_UPLOAD_SUCCESS'
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      res.status(500).json({ 
+        message: 'Failed to upload avatar',
+        code: 'AVATAR_UPLOAD_ERROR'
       });
     }
   }

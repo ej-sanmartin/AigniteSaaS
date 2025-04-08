@@ -3,6 +3,7 @@ CREATE TABLE users (
   email VARCHAR(255) UNIQUE NOT NULL,
   first_name VARCHAR(50),
   last_name VARCHAR(50),
+  avatar_key VARCHAR(255);
   oauth_provider VARCHAR(20) NOT NULL DEFAULT 'local' CHECK (oauth_provider IN ('local', 'google', 'linkedin', 'github')),
   password VARCHAR(255) CHECK ((oauth_provider = 'local' AND password IS NOT NULL) OR 
                               (oauth_provider != 'local' AND password IS NULL)),

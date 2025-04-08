@@ -27,6 +27,7 @@ export interface User {
   lastName: string;
   role: UserRole;
   isVerified?: boolean;
+  profileImageUrl?: string;
   subscription?: Subscription;
   createdAt: Date;
   updatedAt?: Date;

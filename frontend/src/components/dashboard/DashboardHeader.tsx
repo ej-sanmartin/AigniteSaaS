@@ -11,7 +11,6 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ user }: DashboardHeaderProps) {
   const { logout } = useAuth();
-  const router = useRouter();
 
   const handleLogout = async () => {
     try {

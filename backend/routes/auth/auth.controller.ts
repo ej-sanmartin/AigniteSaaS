@@ -5,7 +5,7 @@ import { tokenService } from '../../services/token/token';
 import { SessionService } from '../../services/session/session.service';
 import { OAuthUser, LinkedInProfile, GitHubProfile, GoogleProfile } from './auth.types';
 import crypto from 'crypto';
-import { RequestWithSession } from '../../types/express';
+import { TokenPayload, RequestWithSession } from '../../types/express';
 import {
   LinkedInTokenResponse,
   LinkedInUserInfo,
@@ -14,7 +14,6 @@ import {
 } from './auth.types';
 import { loginSchema } from './auth.validation';
 import bcrypt from 'bcrypt';
-import { TokenPayload } from './auth.types';
 import axios from 'axios';
 import config from '../../config/auth';
 import securityConfig from '../../config/security';
@@ -57,11 +56,40 @@ export class AuthController {
           firstName: profile.name?.givenName || profile.displayName?.split(' ')[0] || '',
           lastName: profile.name?.familyName || profile.displayName?.split(' ').slice(1).join(' ') || '',
           provider,
-          providerId: profile.id || (profile as LinkedInProfile).sub || ''
+          providerId: profile.id || (profile as LinkedInProfile).sub || '',
         };
 
         try {
           const newUser = await authService.createOAuthUser(userData);
+          
+          // Store OAuth avatar if available
+          if (profile.photos?.[0]?.value) {
+            try {
+              await userService.storeOAuthAvatar(newUser.id, profile.photos[0].value);
+              auditService.logAuthEvent(
+                auditService.createAuditEvent({} as Request, {
+                  type: 'oauth_avatar_upload',
+                  userId: newUser.id,
+                  status: 'success',
+                  provider,
+                  userAgent: 'OAuth Provider'
+                })
+              );
+            } catch (avatarError) {
+              console.error('Failed to store OAuth avatar:', avatarError);
+              auditService.logAuthEvent(
+                auditService.createAuditEvent({} as Request, {
+                  type: 'oauth_avatar_upload',
+                  userId: newUser.id,
+                  status: 'failure',
+                  error: avatarError instanceof Error ? avatarError.message : 'Unknown error',
+                  provider,
+                  userAgent: 'OAuth Provider'
+                })
+              );
+            }
+          }
+          
           done(null, newUser);
         } catch (createError) {
           done(createError);
@@ -176,7 +204,7 @@ export class AuthController {
       auditService.logAuthEvent(
         auditService.createAuditEvent(req, {
           type: 'oauth_complete',
-          userId: req.user?.id || 0,
+          userId: (req.user as TokenPayload)?.id || 0,
           userAgent: req.headers['user-agent'] || 'unknown',
           status: 'failure',
           provider,

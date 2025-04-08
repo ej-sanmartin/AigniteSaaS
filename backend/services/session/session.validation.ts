@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DeviceInfo } from '../../types/session';
+import { DeviceInfo } from './session.types';
 
 export const deviceInfoSchema = z.object({
   userAgent: z.string().optional(),

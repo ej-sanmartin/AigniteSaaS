@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { subscriptionService } from './subscription.service';
 import { createSubscriptionSchema } from './subscription.validation';
-import { TokenPayload } from '../../types/auth.types';
+import { TokenPayload } from '../../types/express';
 
 export class SubscriptionController {
   /**

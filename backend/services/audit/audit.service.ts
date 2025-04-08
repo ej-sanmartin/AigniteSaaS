@@ -10,7 +10,9 @@ export type AuditEventType =
   | 'session_destroy'
   | 'login'
   | 'logout'
-  | 'token_rotation';
+  | 'token_rotation'
+  | 'avatar_upload'
+  | 'oauth_avatar_upload';
 
 export type AuditEventStatus = 'success' | 'failure';
 

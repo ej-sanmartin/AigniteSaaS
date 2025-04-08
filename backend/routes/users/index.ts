@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { userController } from './user.controller';
 import { verifySession } from '../../middleware/auth';
+import { upload } from '../../middleware/upload';
 import { RequestWithSession } from '../../types/express';
 
 const router = Router();
@@ -46,6 +47,20 @@ router.delete(
   '/:id',
   verifySession,
   (req: RequestWithSession, res) => userController.deleteUser(req, res)
+);
+
+// Avatar routes
+router.get(
+  '/avatar',
+  verifySession,
+  (req: RequestWithSession, res) => userController.getAvatar(req, res)
+);
+
+router.post(
+  '/avatar',
+  verifySession,
+  upload.single('avatar'),
+  (req: RequestWithSession, res) => userController.uploadAvatar(req, res)
 );
 
 export default router;

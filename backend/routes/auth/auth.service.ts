@@ -2,16 +2,17 @@ import { QueryConfig } from 'pg';
 import { Secret, SignOptions, sign as jwtSign } from 'jsonwebtoken';
 import config from '../../config/auth';
 import { executeQuery } from '../../db/queryExecutor';
-import { OAuthUser, TokenPayload } from './auth.types';
+import { OAuthUser } from './auth.types';
 import bcrypt from 'bcrypt';
 import { oAuthUserSchema } from './auth.validation';
-
+import { UserRole } from '../users/user.types';
+import { TokenPayload } from '../../types/express';
 interface UserRecord {
   id: number;
   email: string;
   first_name: string;
   last_name: string;
-  role: string;
+  role: UserRole;
   password?: string;
   oauth_provider?: string;
   oauth_id?: string;

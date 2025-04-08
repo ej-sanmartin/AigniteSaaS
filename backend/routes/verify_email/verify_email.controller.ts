@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { verifyEmailService } from './verify_email.service';
 import { verificationTokenSchema } from './verify_email.validation';
-import { TokenPayload } from '../../types/auth.types';
+import { TokenPayload } from '../../types/express';
 
 export class VerifyEmailController {
   /**

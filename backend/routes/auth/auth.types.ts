@@ -1,30 +1,10 @@
-import { Request } from 'express';
 import { Profile as OpenIDProfile } from 'passport-openidconnect';
-import { Profile } from 'passport-google-oauth20';
 import { BaseUser } from '../../types/express';
 
-// Use a different name to avoid conflict with Express.Request
-export interface AuthenticatedRequestType {
-  user?: TokenPayload;
-}
-
-export interface User extends BaseUser {
-  provider?: string;
-  providerId?: string;
-}
-
-export interface OAuthUser extends User {
+export interface OAuthUser extends BaseUser {
   provider: string;
   providerId: string;
   isVerified: boolean;
-}
-
-export interface TokenPayload {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
 }
 
 export interface OAuthProfile {

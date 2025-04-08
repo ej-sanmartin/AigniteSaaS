@@ -16,6 +16,12 @@ export interface Session {
   ip_address: string;
 }
 
+export interface SessionData {
+  ip?: string;
+  userAgent?: string;
+  csrfToken?: string;
+}
+
 export class SessionError extends Error {
   constructor(message: string, public readonly code: string) {
     super(message);

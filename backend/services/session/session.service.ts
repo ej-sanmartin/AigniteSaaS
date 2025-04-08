@@ -1,13 +1,7 @@
 import { executeQuery } from '../../db/queryExecutor';
-import { Session, SessionError } from '../../types/session';
+import { Session, SessionData, SessionError } from './session.types';
 import { validateDeviceInfo, validateSession } from './session.validation';
 import crypto from 'crypto';
-
-interface SessionData {
-  ip?: string;
-  userAgent?: string;
-  csrfToken?: string;
-}
 
 export class SessionService {
   async createSession(userId: number, data: SessionData): Promise<Session> {

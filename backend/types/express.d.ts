@@ -1,11 +1,23 @@
-import { TokenPayload } from './auth.types';
-import { User } from './user.types';
+import { Multer } from 'multer';
 import { Request } from 'express';
 import { OAuthUser } from '../routes/auth/auth.types';
+import { UserRole } from '../routes/users/user.types';
+import { Session } from '../services/session/session.types';
 
-declare namespace Express {
-  export interface Request {
-    user?: TokenPayload;
+// Token payload for JWT-authenticated requests. Like User but with minimal
+// fields necessary for authentication.
+export interface TokenPayload {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+}
+
+// Extend Express Request interface to include user property
+declare global {
+  namespace Express {
+    interface User extends TokenPayload {}
   }
 }
 
@@ -15,21 +27,11 @@ export interface BaseUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: string;
-}
-
-declare global {
-  namespace Express {
-    // Extend the base user interface for Express
-    interface User extends BaseUser {
-      provider?: string;
-      providerId?: string;
-    }
-  }
+  role: UserRole;
 }
 
 export interface RequestWithSession extends Request {
-  user?: Express.User;
+  user?: BaseUser | TokenPayload;
+  session?: Session;
+  file?: Multer.File;
 }
-
-export {}; 

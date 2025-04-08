@@ -2,6 +2,8 @@ import { QueryConfig } from 'pg';
 import bcrypt from 'bcryptjs';
 import { executeQuery } from '../../db/queryExecutor';
 import { User, CreateUserDTO, UpdateUserDTO, DashboardStats } from './user.types';
+import { s3StorageProvider } from '../../services/storage/S3StorageProvider';
+import { downloadImageBuffer } from '../../services/storage/imageDownloader';
 
 export class UserService {
   /**
@@ -85,6 +87,7 @@ export class UserService {
         SELECT id, email, 
         first_name as "firstName", 
         last_name as "lastName", 
+        profile_image_url as "profileImageUrl", 
         role, 
         is_verified as "isVerified", 
         created_at as "createdAt", 
@@ -246,6 +249,71 @@ export class UserService {
       accountCreated: result[0].accountCreated.toISOString(),
       subscriptionStatus: result[0].subscriptionStatus
     };
+  }
+
+  /**
+   * Stores an OAuth avatar from a URL
+   */
+  async storeOAuthAvatar(userId: number, imageUrl: string): Promise<void> {
+    try {
+      const buffer = await downloadImageBuffer(imageUrl);
+      const key = `avatars/${userId}.jpg`;
+      const avatarKey = await s3StorageProvider.upload(buffer, key);
+      
+      const query: QueryConfig = {
+        text: 'UPDATE users SET avatar_key = $1 WHERE id = $2',
+        values: [avatarKey, userId]
+      };
+      
+      await executeQuery(query);
+    } catch (error) {
+      console.error('Error storing OAuth avatar:', error);
+      throw new Error('Failed to store OAuth avatar');
+    }
+  }
+
+  /**
+   * Uploads a user avatar from a buffer
+   */
+  async uploadUserAvatar(userId: number, buffer: Buffer): Promise<void> {
+    try {
+      const key = `avatars/${userId}.jpg`;
+      const avatarKey = await s3StorageProvider.upload(buffer, key);
+      
+      const query: QueryConfig = {
+        text: 'UPDATE users SET avatar_key = $1 WHERE id = $2',
+        values: [avatarKey, userId]
+      };
+      
+      await executeQuery(query);
+    } catch (error) {
+      console.error('Error uploading user avatar:', error);
+      throw new Error('Failed to upload avatar');
+    }
+  }
+
+  /**
+   * Gets a signed URL for a user's avatar
+   */
+  async getAvatarUrl(userId: number): Promise<string | null> {
+    try {
+      const query: QueryConfig = {
+        text: 'SELECT avatar_key FROM users WHERE id = $1',
+        values: [userId]
+      };
+      
+      const result = await executeQuery<{ avatar_key: string }[]>(query);
+      const avatarKey = result[0]?.avatar_key;
+      
+      if (!avatarKey) {
+        return null;
+      }
+      
+      return await s3StorageProvider.getSignedUrl(avatarKey);
+    } catch (error) {
+      console.error('Error getting avatar URL:', error);
+      throw new Error('Failed to get avatar URL');
+    }
   }
 }
 
