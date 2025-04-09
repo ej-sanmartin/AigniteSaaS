@@ -51,10 +51,18 @@ export class AuditService {
    * @throws Error in production if IP cannot be determined
    */
   private getIpFromRequest(req: Request): string {
+    // Handle cases where req might be incomplete
+    if (!req || typeof req !== 'object') {
+      if (this.isDevelopment) {
+        return '127.0.0.1';
+      }
+      throw new Error('Invalid request object provided for audit logging');
+    }
+
     // Try different methods to get IP, in order of reliability
     const ip = req.ip || 
-               req.headers['x-forwarded-for']?.toString() || 
-               req.socket.remoteAddress;
+               (req.headers && req.headers['x-forwarded-for']?.toString()) || 
+               req.socket?.remoteAddress;
 
     if (!ip) {
       if (this.isDevelopment) {
@@ -140,6 +148,46 @@ export class AuditService {
       .createHash('sha256')
       .update(userId.toString() + salt)
       .digest('hex');
+  }
+}
+
+/**
+ * A utility function specifically for OAuth audit logging where we don't have
+ * access to the Express Request object.
+ * 
+ * WARNING: This should ONLY be used for OAuth-related audit events that occur
+ * outside of normal HTTP request context. For all other audit logging,
+ * use AuditService.createAuditEvent directly.
+ * 
+ * @param event The audit event to log (without IP)
+ * @param provider The OAuth provider (e.g., 'google', 'github')
+ */
+export function safeOAuthAuditLog(
+  event: Omit<AuditEvent, 'ip'>,
+  provider: string
+): void {
+  const auditService = AuditService.getInstance();
+  
+  try {
+    const fullEvent: AuditEvent = {
+      ...event,
+      provider,
+      ip: '127.0.0.1'
+    };
+
+    auditService.logAuthEvent(fullEvent);
+  } catch (error) {
+    console.error('Safe OAuth audit logging failed:', error);
+    
+    const fallbackEvent: AuditEvent = {
+      ...event,
+      provider,
+      ip: 'unknown',
+      status: 'failure' as const,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    auditService.logAuthEvent(fallbackEvent);
   }
 }
 

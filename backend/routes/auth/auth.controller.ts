@@ -20,6 +20,7 @@ import securityConfig from '../../config/security';
 import { auditService } from '../../services/audit/audit.service';
 import { UserService } from '../users/user.service';
 import redirectConfig from '../../config/redirect';
+import { safeOAuthAuditLog } from '../../services/audit/audit.service';
 
 export class AuthController {
   private userService: UserService;
@@ -66,27 +67,27 @@ export class AuthController {
           if (profile.photos?.[0]?.value) {
             try {
               await userService.storeOAuthAvatar(newUser.id, profile.photos[0].value);
-              auditService.logAuthEvent(
-                auditService.createAuditEvent({} as Request, {
+              safeOAuthAuditLog(
+                {
                   type: 'oauth_avatar_upload',
                   userId: newUser.id,
                   status: 'success',
-                  provider,
                   userAgent: 'OAuth Provider'
-                })
+                },
+                provider
               );
             } catch (avatarError) {
               // Log the error but don't throw it - we don't want to block the OAuth flow
               console.error('Failed to store OAuth avatar:', avatarError);
-              auditService.logAuthEvent(
-                auditService.createAuditEvent({} as Request, {
+              safeOAuthAuditLog(
+                {
                   type: 'oauth_avatar_upload',
                   userId: newUser.id,
                   status: 'failure',
                   error: avatarError instanceof Error ? avatarError.message : 'Unknown error',
-                  provider,
                   userAgent: 'OAuth Provider'
-                })
+                },
+                provider
               );
             }
           }
