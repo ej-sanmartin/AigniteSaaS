@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import type { User } from '@/types/auth';
+import { AvatarProfile } from './AvatarProfile';
 
 interface DashboardHeaderProps {
   user: User | null;
@@ -29,11 +30,16 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
           </div>
           <div className="flex items-center space-x-4">
             <ThemeToggle />
-            <span className="text-gray-700 dark:text-gray-300">
-              {user?.firstName && user?.lastName 
-                ? `${user.firstName} ${user.lastName}`
-                : user?.email || 'User'}
-            </span>
+            <div className="flex items-center space-x-2">
+              <div className="cursor-not-allowed">
+                <AvatarProfile size="sm" />
+              </div>
+              <span className="text-gray-700 dark:text-gray-300">
+                {user?.firstName && user?.lastName 
+                  ? `${user.firstName} ${user.lastName}`
+                  : user?.email || 'User'}
+              </span>
+            </div>
             <button
               onClick={handleLogout}
               className={`

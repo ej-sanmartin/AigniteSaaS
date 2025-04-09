@@ -15,4 +15,4 @@ export async function downloadImageBuffer(url: string): Promise<Buffer> {
     console.error('Error downloading image:', error);
     throw new Error('Failed to download image');
   }
-} 
+}

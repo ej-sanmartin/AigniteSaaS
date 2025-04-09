@@ -2,6 +2,7 @@
 
 import { User } from '@/types/auth';
 import { DashboardStats } from '@/types/dashboard';
+import { AvatarProfile } from './AvatarProfile';
 
 interface UserInfoCardProps {
   user: User | null;
@@ -12,19 +13,7 @@ export function UserInfoCard({ user, stats }: UserInfoCardProps) {
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
       <div className="flex items-center space-x-4 mb-4">
-        {user?.profileImageUrl ? (
-          <img
-            src={user.profileImageUrl}
-            alt={`${user.firstName} ${user.lastName}`}
-            className="h-16 w-16 rounded-full object-cover"
-          />
-        ) : (
-          <div className="h-16 w-16 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-            <span className="text-xl font-medium text-gray-600 dark:text-gray-300">
-              {user?.firstName?.[0]}{user?.lastName?.[0]}
-            </span>
-          </div>
-        )}
+        <AvatarProfile size="lg" />
         <div>
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">Account Information</h2>
         </div>

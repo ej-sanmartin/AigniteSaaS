@@ -62,7 +62,7 @@ export class AuthController {
         try {
           const newUser = await authService.createOAuthUser(userData);
           
-          // Store OAuth avatar if available
+          // Store OAuth avatar if available, but don't block if it fails
           if (profile.photos?.[0]?.value) {
             try {
               await userService.storeOAuthAvatar(newUser.id, profile.photos[0].value);
@@ -76,6 +76,7 @@ export class AuthController {
                 })
               );
             } catch (avatarError) {
+              // Log the error but don't throw it - we don't want to block the OAuth flow
               console.error('Failed to store OAuth avatar:', avatarError);
               auditService.logAuthEvent(
                 auditService.createAuditEvent({} as Request, {

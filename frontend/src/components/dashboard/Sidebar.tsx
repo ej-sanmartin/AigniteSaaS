@@ -15,6 +15,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
+import { AvatarProfile } from './AvatarProfile';
 
 interface NavItem {
   name: string;
@@ -125,9 +126,7 @@ export function Sidebar({ user, onCollapse }: SidebarProps) {
             <div className="flex-shrink-0 group block">
               <div className="flex items-center">
                 <div>
-                  <div className="inline-block h-9 w-9 rounded-full bg-gray-300 dark:bg-gray-600 text-center text-gray-600 dark:text-gray-300 uppercase font-medium flex items-center justify-center">
-                    {user?.email?.[0] || '?'}
-                  </div>
+                  <AvatarProfile size="sm" />
                 </div>
                 <div className="ml-3">
                   <p className="text-base font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
@@ -195,9 +194,7 @@ export function Sidebar({ user, onCollapse }: SidebarProps) {
                 <div className="flex-shrink-0 w-full group block">
                   <div className="flex items-center">
                     <div>
-                      <div className="inline-block h-9 w-9 rounded-full bg-gray-300 dark:bg-gray-600 text-center text-gray-600 dark:text-gray-300 uppercase font-medium flex items-center justify-center">
-                        {user?.email?.[0] || '?'}
-                      </div>
+                      <AvatarProfile size="sm" />
                     </div>
                     <div className="ml-3">
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">

@@ -267,8 +267,9 @@ export class UserService {
       
       await executeQuery(query);
     } catch (error) {
+      // Log the error but don't throw it - we don't want to block the OAuth flow
       console.error('Error storing OAuth avatar:', error);
-      throw new Error('Failed to store OAuth avatar');
+      // Don't throw the error, just log it and continue
     }
   }
 
