@@ -87,7 +87,6 @@ export class UserService {
         SELECT id, email, 
         first_name as "firstName", 
         last_name as "lastName", 
-        profile_image_url as "profileImageUrl", 
         role, 
         is_verified as "isVerified", 
         created_at as "createdAt", 
