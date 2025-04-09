@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import api from '@/utils/api';
+import { useInView } from 'react-intersection-observer';
 
 interface AvatarProfileProps {
   size?: 'sm' | 'md' | 'lg';
@@ -14,6 +15,10 @@ export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProp
   const { user } = useUser();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { ref, inView } = useInView({
+    triggerOnce: false,
+    threshold: 0.1,
+  });
 
   useEffect(() => {
     const fetchAvatar = async () => {
@@ -29,10 +34,10 @@ export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProp
       }
     };
 
-    if (user?.id) {
+    if (user?.id && inView) {
       fetchAvatar();
     }
-  }, [user?.id]);
+  }, [user?.id, inView]);
 
   const sizeClasses = {
     sm: 'w-8 h-8',
@@ -57,7 +62,7 @@ export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProp
   }
 
   return (
-    <div className={`${sizeClasses[size]} relative rounded-full overflow-hidden ${className}`}>
+    <div ref={ref} className={`${sizeClasses[size]} relative rounded-full overflow-hidden ${className}`}>
       <Image
         src={avatarUrl}
         alt="Profile"

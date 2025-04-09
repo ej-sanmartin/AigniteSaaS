@@ -11,6 +11,7 @@ const s3 = new S3Client({
 });
 
 const bucket = process.env.AWS_BUCKET_NAME;
+const expiresInSeconds = parseInt(process.env.AWS_EXPIRES_IN || '900', 10);
 
 export class S3StorageProvider implements StorageProvider {
   async upload(buffer: Buffer, key: string): Promise<string> {
@@ -30,7 +31,7 @@ export class S3StorageProvider implements StorageProvider {
     }
   }
 
-  async getSignedUrl(key: string, expiresIn: number = 900): Promise<string> {
+  async getSignedUrl(key: string, expiresIn: number = expiresInSeconds): Promise<string> {
     try {
       const command = new GetObjectCommand({ 
         Bucket: bucket, 
