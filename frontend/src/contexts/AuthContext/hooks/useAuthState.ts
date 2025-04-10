@@ -137,6 +137,7 @@ export const useAuthState = (): AuthContextType => {
     logout,
     refreshTimeout: refreshTimeoutRef.current,
     setRefreshTimeout,
-    clearRefreshTimeout
+    clearRefreshTimeout,
+    scheduleTokenRefresh
   };
 }; 
