@@ -19,6 +19,12 @@ export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProp
     lg: 'w-16 h-16'
   };
 
+  const textSizeClasses = {
+    sm: 'text-sm',
+    md: 'text-base',
+    lg: 'text-xl'
+  };
+
   if (isLoading) {
     return (
       <div className={`${sizeClasses[size]} rounded-full bg-gray-200 animate-pulse ${className}`} />
@@ -28,7 +34,7 @@ export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProp
   if (!avatarUrl || isError) {
     return (
       <div className={`${sizeClasses[size]} rounded-full bg-gray-200 flex items-center justify-center ${className}`}>
-        <span className="text-gray-500 text-sm font-medium">
+        <span className={`text-gray-500 ${textSizeClasses[size]} font-medium`}>
           {user?.email?.[0]?.toUpperCase() || '?'}
         </span>
       </div>
