@@ -7,6 +7,7 @@ import { useAuth } from './AuthContext';
 
 interface UserContextType {
   user: User | null;
+  setUser: (user: User | null) => void;
   isLoading: boolean;
   error: string | null;
   refreshUser: () => Promise<void>;
@@ -14,6 +15,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType>({
   user: null,
+  setUser: () => {},
   isLoading: true,
   error: null,
   refreshUser: async () => {},
@@ -59,7 +61,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, isCheckingAuth]);
 
   return (
-    <UserContext.Provider value={{ user, isLoading, error, refreshUser }}>
+    <UserContext.Provider value={{ user, setUser, isLoading, error, refreshUser }}>
       {children}
     </UserContext.Provider>
   );

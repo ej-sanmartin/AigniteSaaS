@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/utils/api';
 import { AuthContextType } from '../utils/constants';
 import { AuthError } from '@/types/auth';
+import { useUser } from '@/contexts/UserContext';
 
 export const useAuthState = (): AuthContextType => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -12,6 +13,7 @@ export const useAuthState = (): AuthContextType => {
   const [error, setError] = useState<AuthError | null>(null);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
+  const { setUser } = useUser();
 
   const clearRefreshTimeout = useCallback(() => {
     if (refreshTimeoutRef.current) {
@@ -92,8 +94,8 @@ export const useAuthState = (): AuthContextType => {
       setIsLoading(true);
       setError(null);
       await api.post('/auth/logout');
-      setIsAuthenticated(false);
       clearRefreshTimeout();
+      setIsAuthenticated(false);
       router.push('/');
     } catch (err) {
       setError({ 
