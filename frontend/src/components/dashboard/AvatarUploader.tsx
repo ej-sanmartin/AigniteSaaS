@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { AvatarProfile } from './AvatarProfile';
 import api from '@/utils/api';
 import { toast } from 'react-hot-toast';
+import { mutate } from 'swr';
 
 export function AvatarUploader() {
   const [isUploading, setIsUploading] = useState(false);
@@ -36,6 +37,8 @@ export function AvatarUploader() {
         }
       });
 
+      // Refresh the avatar URL
+      await mutate('/users/avatar');
       toast.success('Avatar updated successfully');
     } catch (error) {
       console.error('Error uploading avatar:', error);

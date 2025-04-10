@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
-import api from '@/utils/api';
-import { useInView } from 'react-intersection-observer';
+import { useAvatar } from '@/hooks/useAvatar';
 
 interface AvatarProfileProps {
   size?: 'sm' | 'md' | 'lg';
@@ -13,31 +11,7 @@ interface AvatarProfileProps {
 
 export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProps) {
   const { user } = useUser();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { ref, inView } = useInView({
-    triggerOnce: false,
-    threshold: 0.1,
-  });
-
-  useEffect(() => {
-    const fetchAvatar = async () => {
-      try {
-        setIsLoading(true);
-        const response = await api.get('/users/avatar');
-        setAvatarUrl(response.data.avatarUrl);
-      } catch (error) {
-        console.error('Error fetching avatar:', error);
-        setAvatarUrl(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user?.id && inView) {
-      fetchAvatar();
-    }
-  }, [user?.id, inView]);
+  const { avatarUrl, isLoading, isError } = useAvatar();
 
   const sizeClasses = {
     sm: 'w-8 h-8',
@@ -51,7 +25,7 @@ export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProp
     );
   }
 
-  if (!avatarUrl) {
+  if (!avatarUrl || isError) {
     return (
       <div className={`${sizeClasses[size]} rounded-full bg-gray-200 flex items-center justify-center ${className}`}>
         <span className="text-gray-500 text-sm font-medium">
@@ -62,7 +36,7 @@ export function AvatarProfile({ size = 'md', className = '' }: AvatarProfileProp
   }
 
   return (
-    <div ref={ref} className={`${sizeClasses[size]} relative rounded-full overflow-hidden ${className}`}>
+    <div className={`${sizeClasses[size]} relative rounded-full overflow-hidden ${className}`}>
       <Image
         src={avatarUrl}
         alt="Profile"
