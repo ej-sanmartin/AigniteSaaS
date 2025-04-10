@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useAuthState } from './useAuthState';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import { TOKEN_REFRESH_INTERVAL } from '../utils/constants';
 
 export const useAuthEffects = () => {

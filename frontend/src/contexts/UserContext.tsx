@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '@/types/auth';
-import api from '@/utils/api';
+import { api }from '@/utils/api';
 import { useAuth } from './AuthContext';
 
 interface UserContextType {
@@ -23,7 +23,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, isCheckingAuth } = useAuth();
+  const { isAuthenticated, isLoading: isCheckingAuth } = useAuth();
 
   const fetchUser = async () => {
     try {

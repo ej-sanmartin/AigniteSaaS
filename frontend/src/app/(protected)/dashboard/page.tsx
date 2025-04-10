@@ -5,7 +5,7 @@ import { UserInfoCard } from '@/components/dashboard/UserInfoCard';
 import { SubscriptionCard } from '@/components/dashboard/SubscriptionCard';
 import { useUser } from '@/contexts/UserContext';
 import { useState, useEffect, useRef } from 'react';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import type { DashboardStats } from '@/types/dashboard';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';

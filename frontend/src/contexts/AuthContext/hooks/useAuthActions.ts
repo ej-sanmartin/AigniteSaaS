@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import api from '@/utils/api';
+import { useRouter } from 'next/navigation';
+import { api } from '@/utils/api';
 import toast from 'react-hot-toast';
 import { useAuthState } from './useAuthState';
 import { useAuthEffects } from './useAuthEffects';

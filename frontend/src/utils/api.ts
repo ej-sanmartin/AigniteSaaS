@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Create axios instance with default config
-const api = axios.create({
+// Create axios instance with default config with interceptors.
+export const api = axios.create({
   baseURL: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api`,
   withCredentials: true,
   headers: {
@@ -9,7 +9,16 @@ const api = axios.create({
   },
 });
 
-// Track failed attempts for exponential backoff
+// Create axios instance with default config without interceptors.
+export const bypassInterceptorsApi = axios.create({
+  baseURL: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api`,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Track failed attempts for exponential backoff.
 let failedAttempts = 0;
 let lastFailedAttempt = 0;
 const MAX_RETRIES = 3;
@@ -98,5 +107,3 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-export default api; 

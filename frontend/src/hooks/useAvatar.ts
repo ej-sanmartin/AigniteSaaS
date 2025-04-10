@@ -1,6 +1,6 @@
 import useSWR from 'swr';
-import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
+import { bypassInterceptorsApi } from '@/utils/api';
 
 const DEFAULT_REFRESH_INTERVAL = "900000";
 
@@ -21,20 +21,9 @@ interface AvatarResponse {
  */
 const avatarFetcher = async (url: string): Promise<string | null> => {
   try {
-    // Use axios directly instead of the global api instance
-    // to bypass the global interceptors that would redirect on auth errors
-    const response = await axios.get<AvatarResponse>(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api${url}`, 
-      {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      }
-    );
+    const response = await bypassInterceptorsApi.get<AvatarResponse>(url);
     return response.data.avatarUrl;
   } catch (error) {
-    // Log warning but don't trigger redirects.
     console.warn('Avatar could not be loaded, using default avatar.');
     return null;
   }
