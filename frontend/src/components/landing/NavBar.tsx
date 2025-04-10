@@ -6,12 +6,15 @@ import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
+import { usePathname } from 'next/navigation';
 
 export function NavBar() {
   const { user, isLoading } = useUser();
   const { logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const pathname = usePathname();
+  const isBlogPage = pathname?.startsWith('/blog');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,6 +63,22 @@ export function NavBar() {
     }
   };
 
+  const handleFeaturesClick = () => {
+    if (isBlogPage) {
+      window.location.href = '/#features';
+    } else {
+      scrollToSection('features');
+    }
+  };
+
+  const handlePricingClick = () => {
+    if (isBlogPage) {
+      window.location.href = '/#pricing';
+    } else {
+      scrollToSection('pricing');
+    }
+  };
+
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${
       isScrolled ? 'bg-white dark:bg-gray-800 shadow-sm' : 'bg-transparent'
@@ -99,6 +118,45 @@ export function NavBar() {
               </>
             ) : (
               <>
+                <div className="hidden md:flex items-center space-x-6">
+                  {isBlogPage ? (
+                    <>
+                      <Link
+                        href="/#features"
+                        className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      >
+                        Features
+                      </Link>
+                      <Link
+                        href="/#pricing"
+                        className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      >
+                        Pricing
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => scrollToSection('features')}
+                        className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      >
+                        Features
+                      </button>
+                      <button
+                        onClick={() => scrollToSection('pricing')}
+                        className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      >
+                        Pricing
+                      </button>
+                    </>
+                  )}
+                  <Link
+                    href="/blog"
+                    className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                  >
+                    Blog
+                  </Link>
+                </div>
                 <Link
                   href="/login"
                   className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
