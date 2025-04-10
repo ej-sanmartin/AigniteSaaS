@@ -11,8 +11,7 @@ interface AvatarResponse {
 /**
  * Custom fetcher for avatar that doesn't trigger auth redirects
  * 
- * This uses axios directly instead of the global api instance to bypass
- * the global interceptors that would trigger redirects on 401 errors.
+ * This uses bypassInterceptorsApi to avoid triggering auth redirects on 401 errors.
  * 
  * We do this because avatar fetching is a non-critical UI element that
  * shouldn't redirect the user to login if it fails. This allows the UI
