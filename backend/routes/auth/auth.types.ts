@@ -112,4 +112,23 @@ export interface GoogleProfile {
     value: string;
   }>;
   provider: string;
+}
+
+export interface GoogleTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+  scope: string;
+  id_token?: string;
+}
+
+export interface GoogleUserInfo {
+  sub: string;
+  email: string;
+  email_verified: boolean;
+  name: string;
+  given_name: string;
+  family_name: string;
+  picture?: string;
+  locale?: string;
 } 

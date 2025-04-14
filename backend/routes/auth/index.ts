@@ -1,6 +1,5 @@
 import express from 'express';
 import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as OpenIDConnectStrategy, Profile as OpenIDProfile } from 'passport-openidconnect';
 import { Strategy as GitHubStrategy, Profile as GitHubProfile } from 'passport-github2';
 import config from '../../config/auth';
@@ -49,21 +48,6 @@ const router = Router();
 
 // Setup Passport strategies
 const setupPassportStrategies = (): void => {
-  if (
-    config.oauth.google.clientId && 
-    config.oauth.google.clientSecret
-  ) {
-    passport.use(new GoogleStrategy({
-      clientID: config.oauth.google.clientId,
-      clientSecret: config.oauth.google.clientSecret,
-      callbackURL: config.oauth.google.callbackURL,
-    }, async (_accessToken, _refreshToken, profile, done) => {
-      authController.handleOAuthUser(profile, 'google', done);
-    }));
-  } else {
-    console.warn('Google OAuth credentials missing');
-  }
-
   if (
     config.oauth.linkedin.clientId &&
     config.oauth.linkedin.clientSecret
@@ -196,10 +180,7 @@ router.get('/google',
   },
   authLimiter,
   redirectValidation,
-  passport.authenticate('google', { 
-    scope: ['profile', 'email'],
-    prompt: 'select_account'
-  })
+  (req: Request, res: Response) => authController.initiateOAuth(req, res, 'google')
 );
 
 router.get(
@@ -207,9 +188,7 @@ router.get(
   authLimiter,
   redirectValidation,
   csrfProtection,
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  (req: Request, res: express.Response) =>
-    authController.handleOAuthCallback(req, res, 'google')
+  (req: Request, res: Response) => authController.handleGoogleOAuthCallback(req, res)
 );
 
 router.get('/linkedin',

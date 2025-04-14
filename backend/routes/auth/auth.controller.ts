@@ -9,7 +9,9 @@ import {
   LinkedInTokenResponse,
   LinkedInUserInfo,
   GitHubTokenResponse,
-  GitHubUserInfo
+  GitHubUserInfo,
+  GoogleTokenResponse,
+  GoogleUserInfo
 } from './auth.types';
 import { loginSchema } from './auth.validation';
 import bcrypt from 'bcrypt';
@@ -858,6 +860,148 @@ export class AuthController {
       );
 
       res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Failed to initiate OAuth')}`);
+    }
+  }
+
+  /**
+   * Handles Google OAuth callback
+   */
+  async handleGoogleOAuthCallback(req: Request, res: Response): Promise<void> {
+    const code = req.query.code;
+    const state = req.query.state;
+
+    if (!code || !state) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=missing_params`);
+    }
+
+    const stateSession = await this.sessionService.getOAuthStateSession(state as string);
+    if (!stateSession) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_state`);
+    }
+
+    // Clear the connect.sid cookie
+    res.clearCookie('connect.sid', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    const returnTo = stateSession.metadata?.returnTo || '/dashboard';
+
+    try {
+      // Get access token for Google API
+      const { data: tokenData } = await axios.post<GoogleTokenResponse>(
+        'https://oauth2.googleapis.com/token',
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: code as string,
+          redirect_uri: config.oauth.google.callbackURL,
+          client_id: config.oauth.google.clientId || '',
+          client_secret: config.oauth.google.clientSecret || ''
+        }).toString()
+      );
+      
+      if (!tokenData.access_token) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
+      }
+      
+      // Get user info
+      const { data: userInfo } = await axios.get<GoogleUserInfo>('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`
+        }
+      });
+
+      // Create or update user
+      const user = await authService.createOAuthUser({
+        email: userInfo.email,
+        firstName: userInfo.given_name,
+        lastName: userInfo.family_name,
+        provider: 'google',
+        providerId: userInfo.sub,
+        role: 'user'
+      });
+
+      // Store OAuth avatar if available, but don't block if it fails
+      if (userInfo.picture) {
+        try {
+          await userService.storeOAuthAvatar(user.id, userInfo.picture);
+          safeOAuthAuditLog(
+            {
+              type: 'oauth_avatar_upload',
+              userId: user.id,
+              status: 'success',
+              userAgent: 'Google OAuth'
+            },
+            'google'
+          );
+        } catch (avatarError) {
+          console.error('Failed to store Google OAuth avatar:', avatarError);
+          safeOAuthAuditLog(
+            {
+              type: 'oauth_avatar_upload',
+              userId: user.id,
+              status: 'failure',
+              error: avatarError instanceof Error ? avatarError.message : 'Unknown error',
+              userAgent: 'Google OAuth'
+            },
+            'google'
+          );
+        }
+      }
+
+      // Create session
+      const session = await this.sessionService.createSession(user.id, {
+        ip: stateSession.ip_address,
+        userAgent: stateSession.device_info?.userAgent || 'unknown'
+      });
+
+      // Generate access token for the user for the frontend
+      const accessToken = authService.generateToken({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        sessionId: session.session_id
+      } as User & { sessionId: string });
+
+      // Generate refresh token
+      const refreshToken = await this.tokenService.createRefreshToken(user.id);
+
+      // Revoke OAuth state session
+      await this.sessionService.revokeOAuthStateSession(stateSession.session_id);
+
+      // Set secure cookies
+      const cookieOptions = {
+        httpOnly: securityConfig.cookies.httpOnly,
+        secure: securityConfig.cookies.secure,
+        sameSite: securityConfig.cookies.sameSite as 'lax' | 'strict' | 'none',
+      };
+
+      // Set session cookie
+      res.cookie('session_id', session.session_id, {
+        ...cookieOptions,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      });
+
+      // Set access token cookie
+      res.cookie('token', accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000, // 15 minutes
+      });
+
+      // Set refresh token cookie
+      res.cookie('refreshToken', refreshToken, {
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      return res.redirect(`${process.env.FRONTEND_URL}${returnTo}`);
+    } catch (error) {
+      console.error('Google OAuth callback error:', error);
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Authentication failed')}`);
     }
   }
 }
