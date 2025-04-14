@@ -1,7 +1,6 @@
 import './config/env';
 
 import express from 'express';
-import passport from 'passport';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
@@ -61,10 +60,6 @@ app.use(session({
     maxAge: 10 * 60 * 1000 // 10 minutes for OAuth state
   }
 }));
-
-// Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Routes
 app.use('/api/auth', authRoutes);

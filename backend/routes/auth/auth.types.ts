@@ -87,14 +87,16 @@ export interface GitHubTokenResponse {
 export interface GitHubUserInfo {
   id: number;
   login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string;
+}
+
+export interface GitHubEmail {
   email: string;
-  name: string;
-  avatar_url?: string;
-  bio?: string;
-  company?: string;
-  location?: string;
-  created_at: string;
-  updated_at: string;
+  primary: boolean;
+  verified: boolean;
+  visibility: string | null;
 }
 
 export interface GoogleProfile {

@@ -11,7 +11,8 @@ import {
   GitHubTokenResponse,
   GitHubUserInfo,
   GoogleTokenResponse,
-  GoogleUserInfo
+  GoogleUserInfo,
+  GitHubEmail
 } from './auth.types';
 import { loginSchema } from './auth.validation';
 import bcrypt from 'bcrypt';
@@ -568,7 +569,7 @@ export class AuthController {
     // Revoke OAuth state session
     await this.sessionService.revokeOAuthStateSession(stateSession.session_id);
 
-    // Set all required cookies
+    // Set session cookie
     res.cookie('session_id', session.session_id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -576,6 +577,7 @@ export class AuthController {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
+    // Set access token cookie
     res.cookie('token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -583,6 +585,7 @@ export class AuthController {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
+    // Set refresh token cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -594,30 +597,33 @@ export class AuthController {
   }
 
   /**
-   * Handles GitHub OAuth callback. It's more complex than the other OAuth
-   * callbacks because GitHub requires a second request to get the user info.
+   * Handles GitHub OAuth callback
    */
   async handleGitHubOAuthCallback(req: Request, res: Response): Promise<void> {
+    const code = req.query.code;
+    const state = req.query.state;
+
+    if (!code || !state) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=missing_params`);
+    }
+
+    const stateSession = await this.sessionService.getOAuthStateSession(state as string);
+    if (!stateSession) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_state`);
+    }
+
+    // Clear the connect.sid cookie
+    res.clearCookie('connect.sid', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    const returnTo = stateSession.metadata?.returnTo;
+
     try {
-      const { code, state } = req.query;
-      
-      if (!code || !state) {
-        console.error('No authorization code or state provided');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code_or_state`);
-      }
-
-      // Find and validate state session using session service
-      const stateSession = await this.sessionService.getOAuthStateSession(state as string);
-      if (!stateSession) {
-        console.error('Invalid or expired OAuth state');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_state`);
-      }
-
-      const returnTo = stateSession.metadata?.returnTo || '/dashboard';
-
-      // Revoke the state session as it's no longer needed
-      await this.sessionService.revokeOAuthStateSession(stateSession.session_id);
-      
+      // Get access token
       const tokenResponse = await axios.post<GitHubTokenResponse>(
         'https://github.com/login/oauth/access_token',
         new URLSearchParams({
@@ -628,7 +634,8 @@ export class AuthController {
         }).toString(),
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
           }
         }
       );
@@ -636,95 +643,120 @@ export class AuthController {
       const { access_token } = tokenResponse.data;
       
       if (!access_token) {
-        console.error('No access token received');
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
       }
       
+      // Get user info
       const userInfoResponse = await axios.get<GitHubUserInfo>('https://api.github.com/user', {
         headers: {
-          Authorization: `Bearer ${access_token}`
+          Authorization: `Bearer ${access_token}`,
+          'Accept': 'application/json'
         }
       });
-      
-      const userInfo = userInfoResponse.data;
-      
-      if (!userInfo || !userInfo.id) {
-        console.error('Invalid user info received');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_user_info`);
+
+      // Get user emails
+      const emailsResponse = await axios.get<GitHubEmail[]>('https://api.github.com/user/emails', {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      // Find primary email
+      const primaryEmail = emailsResponse.data.find(email => email.primary)?.email;
+      if (!primaryEmail) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_primary_email`);
       }
-      
-      let user = await userService.getUserByEmail(userInfo.email);
-      
-      if (!user) {
-        await authService.createOAuthUser({
-          email: userInfo.email,
-          firstName: userInfo.name?.split(' ')[0] || userInfo.login,
-          lastName: userInfo.name?.split(' ').slice(1).join(' ') || '',
-          provider: 'github',
-          providerId: userInfo.id.toString(),
-          role: 'user'
-        });
-        user = await userService.getUserByEmail(userInfo.email);
+
+      // Create or update user
+      const user = await authService.createOAuthUser({
+        email: primaryEmail,
+        firstName: userInfoResponse.data.name?.split(' ')[0] || userInfoResponse.data.login,
+        lastName: userInfoResponse.data.name?.split(' ').slice(1).join(' ') || '',
+        provider: 'github',
+        providerId: userInfoResponse.data.id.toString(),
+        role: 'user'
+      });
+
+      // Store OAuth avatar if available, but don't block if it fails
+      if (userInfoResponse.data.avatar_url) {
+        try {
+          await userService.storeOAuthAvatar(user.id, userInfoResponse.data.avatar_url);
+          safeOAuthAuditLog(
+            {
+              type: 'oauth_avatar_upload',
+              userId: user.id,
+              status: 'success',
+              userAgent: 'GitHub OAuth'
+            },
+            'github'
+          );
+        } catch (avatarError) {
+          console.error('Failed to store GitHub OAuth avatar:', avatarError);
+          safeOAuthAuditLog(
+            {
+              type: 'oauth_avatar_upload',
+              userId: user.id,
+              status: 'failure',
+              error: avatarError instanceof Error ? avatarError.message : 'Unknown error',
+              userAgent: 'GitHub OAuth'
+            },
+            'github'
+          );
+        }
       }
-      
-      if (!user) {
-        console.error('Failed to create or find user');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=user_creation_failed`);
-      }
-      
-      await userService.updateLastLogin(user.id);
+
+      // Create session
+      const session = await this.sessionService.createSession(user.id, {
+        ip: stateSession.ip_address,
+        userAgent: stateSession.device_info?.userAgent || 'unknown'
+      });
+
+      // Generate access token for the user for the frontend
       const accessToken = authService.generateToken({
         id: user.id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role
-      });
-      const refreshToken = await this.tokenService.createRefreshToken(user.id);
-      
-      const frontendUrl = process.env.FRONTEND_URL;
-      if (!frontendUrl) {
-        throw new Error('Frontend URL not configured');
-      }
-      
-      // Create session
-      const session = await this.sessionService.createSession(user.id, {
-        ip: req.ip,
-        userAgent: req.headers['user-agent'] || 'unknown'
-      });
+        role: user.role,
+        sessionId: session.session_id
+      } as User & { sessionId: string });
 
-      // Revoke OAuth state session after successful user session creation
+      // Generate refresh token
+      const refreshToken = await this.tokenService.createRefreshToken(user.id);
+
+      // Revoke OAuth state session
       await this.sessionService.revokeOAuthStateSession(stateSession.session_id);
 
       // Set secure cookies
+      const cookieOptions = {
+        httpOnly: securityConfig.cookies.httpOnly,
+        secure: securityConfig.cookies.secure,
+        sameSite: securityConfig.cookies.sameSite as 'lax' | 'strict' | 'none',
+      };
+
+      // Set session cookie
       res.cookie('session_id', session.session_id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        ...cookieOptions,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
       });
 
+      // Set access token cookie
       res.cookie('token', accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000 // 15 minutes
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000, // 15 minutes
       });
 
+      // Set refresh token cookie
       res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      // Redirect to frontend with returnTo
-      res.redirect(`${frontendUrl}${returnTo}`);
-      
+      return res.redirect(`${process.env.FRONTEND_URL}${returnTo}`);
     } catch (error) {
-      console.error('GitHub callback error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+      console.error('GitHub OAuth callback error:', error);
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Authentication failed')}`);
     }
   }
 
