@@ -47,7 +47,7 @@ app.use(cookieParser());
 // Rate limiting
 app.use(apiLimiter);
 
-// OAuth session configuration
+// Custom OAuth session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   store: new OAuthSessionStore(),
