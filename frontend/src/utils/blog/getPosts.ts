@@ -11,7 +11,7 @@ const dummyPosts: Post[] = Array.from({ length: 25 }, (_, i) => ({
   author: 'John Doe',
 }));
 
-export async function getPosts(page: number = 1, postsPerPage: number = 10): Promise<PaginatedPosts> {
+export async function getPosts(page: number = 1, postsPerPage: number = 12): Promise<PaginatedPosts> {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 100));
 
