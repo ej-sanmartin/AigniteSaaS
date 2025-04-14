@@ -1,13 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { SessionService } from '../services/session/session.service';
-import { UserRole } from '../routes/users/user.types';
+import { User, UserRole } from '../routes/users/user.types';
 import { userService } from '../routes/users/user.service';
-import { RequestWithSession } from '../types/express';
-
 const sessionService = new SessionService();
 
 export const verifySession = async (
-  req: RequestWithSession,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<Response | void> => {
@@ -46,7 +44,7 @@ export const verifySession = async (
     }
 
     // Set user on request
-    req.user = user;
+    req.user = user as User;
 
     next();
   } catch (error) {
@@ -59,7 +57,7 @@ export const verifySession = async (
 
 export const verifyRole = (allowedRoles: UserRole[]) => {
   return async (
-    req: RequestWithSession,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<Response | void> => {
@@ -106,4 +104,4 @@ export const verifyRole = (allowedRoles: UserRole[]) => {
       });
     }
   };
-}; 
+};

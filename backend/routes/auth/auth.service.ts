@@ -5,8 +5,7 @@ import { executeQuery } from '../../db/queryExecutor';
 import { OAuthUser } from './auth.types';
 import bcrypt from 'bcrypt';
 import { oAuthUserSchema } from './auth.validation';
-import { UserRole } from '../users/user.types';
-import { TokenPayload } from '../../types/express';
+import { User, UserRole } from '../users/user.types';
 interface UserRecord {
   id: number;
   email: string;
@@ -345,7 +344,7 @@ export class AuthService {
   /**
    * Generates a JWT token
    */
-  generateToken(payload: TokenPayload): string {
+  generateToken(payload: User): string {
     if (!process.env.JWT_SECRET) {
       throw new Error('JWT secret is not configured');
     }

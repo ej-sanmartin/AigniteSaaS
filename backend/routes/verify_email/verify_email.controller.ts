@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { verifyEmailService } from './verify_email.service';
 import { verificationTokenSchema } from './verify_email.validation';
-import { TokenPayload } from '../../types/express';
+import { User } from 'routes/users/user.types';
 
 export class VerifyEmailController {
   /**
@@ -11,8 +11,8 @@ export class VerifyEmailController {
     req: Request,
     res: Response
   ): Promise<void> {
-    const user = req.user as TokenPayload;
-    const userId = user?.id;
+    const user = req.user;
+    const userId = (user as User)?.id;
     
     if (!userId) {
       res.status(401).json({

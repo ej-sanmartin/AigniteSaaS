@@ -4,6 +4,7 @@ import { Request } from 'express';
 
 export type AuditEventType = 
   | 'oauth_start' 
+  | 'oauth_login'
   | 'oauth_complete' 
   | 'token_refresh' 
   | 'session_create' 
@@ -18,7 +19,7 @@ export type AuditEventStatus = 'success' | 'failure';
 
 export interface AuditEvent {
   type: AuditEventType;
-  userId: number;
+  userId?: number;
   ip: string;
   userAgent: string;
   status: AuditEventStatus;
@@ -98,7 +99,7 @@ export class AuditService {
     }
 
     const timestamp = new Date().toISOString();
-    const hashedUserId = this.hashUserId(event.userId);
+    const hashedUserId = event.userId ? this.hashUserId(event.userId) : 'anonymous';
     
     const logEntry = {
       timestamp,
@@ -133,6 +134,11 @@ export class AuditService {
     // Ensure no sensitive data is included in production
     if (!this.isDevelopment && logEntry.metadata) {
       throw new Error('Metadata should not be included in production logs');
+    }
+    
+    // Validate userId if present
+    if (logEntry.userId !== undefined && typeof logEntry.userId !== 'number') {
+      throw new Error('userId must be a number if provided');
     }
   }
 

@@ -4,8 +4,10 @@ import express from 'express';
 import passport from 'passport';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import session from 'express-session';
 import { apiLimiter } from './middleware/rateLimiter';
 import { securityHeaders, corsMiddleware } from './middleware/security';
+import { OAuthSessionStore } from './services/session/oauth_session.store';
 import authRoutes from './routes/auth/index';
 import verifyEmailRoutes from './routes/verify_email/index';
 import userRoutes from './routes/users/index';
@@ -46,8 +48,23 @@ app.use(cookieParser());
 // Rate limiting
 app.use(apiLimiter);
 
+// OAuth session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  store: new OAuthSessionStore(),
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000 // 10 minutes for OAuth state
+  }
+}));
+
 // Initialize Passport
 app.use(passport.initialize());
+app.use(passport.session());
 
 // Routes
 app.use('/api/auth', authRoutes);

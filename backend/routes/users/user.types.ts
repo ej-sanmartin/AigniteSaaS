@@ -5,14 +5,15 @@ export type UserRole = 'user' | 'admin';
 export interface User {
   id: number;
   email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  isVerified: boolean;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: UserRole;
+  isVerified?: boolean;
+  oauthProvider?: string;
   profileImageUrl?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // API response user model (without sensitive data)

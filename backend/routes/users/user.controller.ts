@@ -1,25 +1,26 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { userService } from './user.service';
 import { User, UpdateUserDTO, SafeUser } from './user.types';
 import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
 import { verifyEmailService } from '../verify_email/verify_email.service';
 import { authService } from '../auth/auth.service';
-import { tokenService } from '../../services/token/token';
-import { RequestWithSession } from '../../types/express';
+import { TokenService } from '../../services/token/token';
 import { SessionService } from '../../services/session/session.service';
 
 export class UserController {
   private sessionService: SessionService;
+  private tokenService: TokenService;
 
   constructor() {
     this.sessionService = new SessionService();
+    this.tokenService = new TokenService();
   }
 
   /**
    * Handles user registration
    */
-  async createUser(req: RequestWithSession, res: Response): Promise<void> {
+  async createUser(req: Request, res: Response): Promise<void> {
     try {
       const validatedData = createUserSchema.parse(req.body);
       
@@ -53,7 +54,7 @@ export class UserController {
         role: user.role
       });
 
-      const refreshToken = await tokenService.createRefreshToken(user.id);
+      const refreshToken = await this.tokenService.createRefreshToken(user.id);
 
       // Remove password from response
       const { password, ...userWithoutPassword } = user;
@@ -105,7 +106,7 @@ export class UserController {
   /**
    * Handles getting all users (admin only)
    */
-  async getAllUsers(_req: RequestWithSession, res: Response): Promise<void> {
+  async getAllUsers(_req: Request, res: Response): Promise<void> {
     try {
       const users = await userService.getAllUsers();
       res.json(users);
@@ -121,8 +122,8 @@ export class UserController {
   /**
    * Handles getting a user by ID
    */
-  async getUserById(req: RequestWithSession, res: Response): Promise<void> {
-    const user = req.user as User;
+  async getUserById(req: Request, res: Response): Promise<void> {
+    const user = req.user;
     const userId = parseInt(req.params.id);
 
     if (!userId) {
@@ -133,7 +134,7 @@ export class UserController {
       return;
     }
 
-    if (userId !== user.id) {
+    if (userId !== (user as User).id) {
       res.status(403).json({ message: 'Access denied' });
       return;
     }
@@ -159,10 +160,10 @@ export class UserController {
   /**
    * Handles updating a user
    */
-  async updateUser(req: RequestWithSession, res: Response): Promise<void> {
+  async updateUser(req: Request, res: Response): Promise<void> {
+    const user = req.user;
     const { id } = req.params;
-    const user = req.user as User;
-    const userId = user?.id;
+    const userId = (user as User).id;
     const updates: UpdateUserDTO = req.body;
 
     if (!userId) {
@@ -199,7 +200,7 @@ export class UserController {
   /**
    * Handles deleting a user
    */
-  async deleteUser(req: RequestWithSession, res: Response): Promise<void> {
+  async deleteUser(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
 
     try {
@@ -220,7 +221,7 @@ export class UserController {
   /**
    * Handles getting dashboard stats for a user
    */
-  async getDashboardStats(req: RequestWithSession, res: Response): Promise<void> {
+  async getDashboardStats(req: Request, res: Response): Promise<void> {
     try {
       const sessionId = req.cookies.session_id;
       
@@ -256,7 +257,7 @@ export class UserController {
   /**
    * Gets the current user's profile
    */
-  async getUserProfile(req: RequestWithSession, res: Response): Promise<void> {
+  async getUserProfile(req: Request, res: Response): Promise<void> {
     try {
       const sessionId = req.cookies.session_id;
       
@@ -304,18 +305,18 @@ export class UserController {
   /**
    * Gets the current user's avatar URL
    */
-  async getAvatar(req: RequestWithSession, res: Response): Promise<void> {
-    try {
-      const userId = req.user?.id;
-      
-      if (!userId) {
-        res.status(401).json({ 
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED'
-        });
-        return;
-      }
+  async getAvatar(req: Request, res: Response): Promise<void> {
+    const userId = (req.user as User).id;
+    
+    if (!userId) {
+      res.status(401).json({ 
+        message: 'Unauthorized',
+        code: 'UNAUTHORIZED'
+      });
+      return;
+    }
 
+    try {
       const avatarUrl = await userService.getAvatarUrl(userId);
       
       if (!avatarUrl) {
@@ -339,28 +340,28 @@ export class UserController {
   /**
    * Uploads a new avatar for the current user
    */
-  async uploadAvatar(req: RequestWithSession, res: Response): Promise<void> {
+  async uploadAvatar(req: Request, res: Response): Promise<void> {
+    const userId = (req.user as User).id;
+    
+    if (!userId) {
+      res.status(401).json({ 
+        message: 'Unauthorized',
+        code: 'UNAUTHORIZED'
+      });
+      return;
+    }
+
+    const file = req.file;
+    
+    if (!file) {
+      res.status(400).json({ 
+        message: 'No file uploaded',
+        code: 'NO_FILE'
+      });
+      return;
+    }
+
     try {
-      const userId = req.user?.id;
-      
-      if (!userId) {
-        res.status(401).json({ 
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED'
-        });
-        return;
-      }
-
-      const file = req.file;
-      
-      if (!file) {
-        res.status(400).json({ 
-          message: 'No file uploaded',
-          code: 'NO_FILE'
-        });
-        return;
-      }
-
       await userService.uploadUserAvatar(userId, file.buffer);
       
       res.json({ 

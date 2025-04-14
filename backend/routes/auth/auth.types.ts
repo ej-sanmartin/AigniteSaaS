@@ -1,7 +1,7 @@
 import { Profile as OpenIDProfile } from 'passport-openidconnect';
-import { BaseUser } from '../../types/express';
+import { User } from '../users/user.types';
 
-export interface OAuthUser extends BaseUser {
+export interface OAuthUser extends User {
   provider: string;
   providerId: string;
   isVerified: boolean;

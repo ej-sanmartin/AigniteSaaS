@@ -25,14 +25,5 @@
     "typeRoots": ["./node_modules/@types", "./types"]
   },
   "exclude": ["node_modules"],
-  "include": [
-    "./src/**/*.ts",
-    "./types/**/*.d.ts",
-    "config/auth.ts",
-    "config/database.ts",
-    "middleware/auth.ts",
-    "middleware/rateLimiter.ts",
-    "routes/auth/auth.ts",
-    "routes/users/user.ts"
-  ]
+  "include": ["./**/*.ts"]
 } 

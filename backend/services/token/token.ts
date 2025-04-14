@@ -367,5 +367,3 @@ export class TokenService {
     await executeQuery(query);
   }
 }
-
-export const tokenService = new TokenService(); 

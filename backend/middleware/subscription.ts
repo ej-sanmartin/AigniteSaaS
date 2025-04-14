@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { executeQuery } from '../db/queryExecutor';
 import { SubscriptionStatus } from '../types/stripe.types';
-import { TokenPayload } from '../types/auth.types';
+import { TokenPayload } from '../services/token/token.types';
 
 // Cache the current UTC date for 1 minute
 let cachedNow: Date | null = null;

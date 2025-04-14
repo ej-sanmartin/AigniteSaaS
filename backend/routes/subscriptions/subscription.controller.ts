@@ -1,14 +1,13 @@
 import { Request, Response } from 'express';
 import { subscriptionService } from './subscription.service';
 import { createSubscriptionSchema } from './subscription.validation';
-import { TokenPayload } from '../../types/express';
-
+import { User } from '../users/user.types';
 export class SubscriptionController {
   /**
    * Handles getting subscription status
    */
   async getStatus(req: Request, res: Response): Promise<void> {
-    const user = req.user as TokenPayload;
+    const user = req.user as User;
     
     if (!user?.id) {
       res.status(401).json({ 
@@ -34,7 +33,7 @@ export class SubscriptionController {
    * Handles creating new subscription
    */
   async create(req: Request, res: Response): Promise<void> {
-    const user = req.user as TokenPayload;
+    const user = req.user as User;
     
     if (!user?.id) {
       res.status(401).json({ 

@@ -181,6 +181,7 @@ export class UserService {
           first_name as "firstName",
           last_name as "lastName",
           role,
+          oauth_provider as "oauthProvider",
           is_verified as "isVerified",
           created_at as "createdAt",
           updated_at as "updatedAt"

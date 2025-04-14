@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import type { User } from '@/types/auth';
 import { AvatarProfile } from './AvatarProfile';

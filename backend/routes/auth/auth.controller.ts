@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
 import { authService } from './auth.service';
 import { userService } from '../users/user.service';
-import { tokenService } from '../../services/token/token';
+import { TokenService } from '../../services/token/token';
 import { SessionService } from '../../services/session/session.service';
 import { OAuthUser, LinkedInProfile, GitHubProfile, GoogleProfile } from './auth.types';
 import crypto from 'crypto';
-import { TokenPayload, RequestWithSession } from '../../types/express';
 import {
   LinkedInTokenResponse,
   LinkedInUserInfo,
@@ -21,16 +20,17 @@ import { auditService } from '../../services/audit/audit.service';
 import { UserService } from '../users/user.service';
 import redirectConfig from '../../config/redirect';
 import { safeOAuthAuditLog } from '../../services/audit/audit.service';
+import { User, UserRole } from '../users/user.types';
 
 export class AuthController {
   private userService: UserService;
   private sessionService: SessionService;
-  private tokenService: typeof tokenService;
+  private tokenService: TokenService;
 
   constructor() {
     this.userService = new UserService();
     this.sessionService = new SessionService();
-    this.tokenService = tokenService;
+    this.tokenService = new TokenService();
   }
 
   /**
@@ -101,7 +101,8 @@ export class AuthController {
         const oauthUser: OAuthUser = {
           ...user,
           provider,
-          providerId: profile.id || (profile as LinkedInProfile).sub || ''
+          providerId: profile.id || (profile as LinkedInProfile).sub || '',
+          isVerified: user.isVerified || false,
         };
         done(null, oauthUser);
       }
@@ -140,13 +141,22 @@ export class AuthController {
         userAgent: req.headers['user-agent'] || 'unknown',
       });
 
+      // Revoke OAuth state session after successful user session creation
+      const state = req.query.state as string;
+      if (state) {
+        const oauthSession = await this.sessionService.getOAuthStateSession(state);
+        if (oauthSession) {
+          await this.sessionService.revokeOAuthStateSession(oauthSession.session_id);
+        }
+      }
+
       // Generate access token
       const accessToken = authService.generateToken({
         id: user.id,
         email: user.email,
         role: user.role,
         sessionId: session.session_id
-      } as TokenPayload & { sessionId: string });
+      } as User & { sessionId: string });
 
       // Generate refresh token
       const refreshToken = await this.tokenService.createRefreshToken(user.id);
@@ -182,8 +192,9 @@ export class AuthController {
       // Get the validated redirect path using existing config
       const returnTo = req.query.returnTo as string;
       const userRole = user.role;
-      const redirectPath = redirectConfig.roleBasedRedirects.authenticated[userRole] || 
-                          redirectConfig.defaultRedirect;
+      const redirectPath = 
+        redirectConfig.roleBasedRedirects.authenticated[userRole as UserRole] ??
+        redirectConfig.defaultRedirect;
 
       // Log the redirect event
       auditService.logAuthEvent(
@@ -206,7 +217,7 @@ export class AuthController {
       auditService.logAuthEvent(
         auditService.createAuditEvent(req, {
           type: 'oauth_complete',
-          userId: (req.user as TokenPayload)?.id || 0,
+          userId: (req.user as OAuthUser)?.id,
           userAgent: req.headers['user-agent'] || 'unknown',
           status: 'failure',
           provider,
@@ -231,8 +242,16 @@ export class AuthController {
       // Find user by email
       const user = await userService.getUserByEmail(validatedData.email);
       
+      // If user doesn't exist, yet.
       if (!user) {
         // Use vague message for security
+        res.status(401).json({ message: 'Invalid credentials' });
+        return;
+      }
+
+      // If user created account through OAuth signup processes and they haven't
+      // set a password, they can't login with email/password.
+      if (user.oauthProvider !== 'local' && !user.password) {
         res.status(401).json({ message: 'Invalid credentials' });
         return;
       }
@@ -240,7 +259,7 @@ export class AuthController {
       // Verify password
       const isPasswordValid = await bcrypt.compare(
         validatedData.password,
-        user.password
+        user.password as string
       );
 
       if (!isPasswordValid) {
@@ -288,7 +307,7 @@ export class AuthController {
       }
 
       // Verify refresh token
-      const userId = await tokenService.verifyRefreshToken(refreshToken);
+      const userId = await this.tokenService.verifyRefreshToken(refreshToken);
       if (!userId) {
         res.status(401).json({ message: 'Invalid refresh token' });
         return;
@@ -311,16 +330,16 @@ export class AuthController {
       });
 
       // Generate new refresh token
-      const newRefreshToken = await tokenService.createRefreshToken(user.id);
+      const newRefreshToken = await this.tokenService.createRefreshToken(user.id);
 
       // Get the ID of the new refresh token
-      const newTokenId = await tokenService.getTokenId(newRefreshToken);
+      const newTokenId = await this.tokenService.getTokenId(newRefreshToken);
       if (!newTokenId) {
         throw new Error('Failed to get new token ID');
       }
 
       // Revoke old refresh token and link it to the new one
-      await tokenService.revokeRefreshToken(refreshToken, newTokenId);
+      await this.tokenService.revokeRefreshToken(refreshToken, newTokenId);
 
       // Set secure cookies
       res.cookie('token', accessToken, {
@@ -395,7 +414,7 @@ export class AuthController {
   /**
    * Checks authentication status
    */
-  async checkAuth(req: RequestWithSession, res: Response): Promise<void> {
+  async checkAuth(req: Request, res: Response): Promise<void> {
     try {
       const sessionId = req.cookies.session_id;
       
@@ -432,121 +451,128 @@ export class AuthController {
    * callbacks because LinkedIn requires a second request to get the user info.
    */
   async handleLinkedInOAuthCallback(req: Request, res: Response): Promise<void> {
-    try {
-      const { code } = req.query;
-      
-      if (!code) {
-        console.error('No authorization code provided');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
-      }
-      
-      const tokenResponse = await axios.post<LinkedInTokenResponse>(
-        'https://www.linkedin.com/oauth/v2/accessToken',
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          code: code as string,
-          redirect_uri: config.oauth.linkedin.callbackURL,
-          client_id: config.oauth.linkedin.clientId || '',
-          client_secret: config.oauth.linkedin.clientSecret || ''
-        }).toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-      
-      const { access_token } = tokenResponse.data;
-      
-      if (!access_token) {
-        console.error('No access token received');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
-      }
-      
-      const userInfoResponse = await axios.get<LinkedInUserInfo>('https://api.linkedin.com/v2/userinfo', {
-        headers: {
-          Authorization: `Bearer ${access_token}`
-        }
-      });
-      
-      const userInfo = userInfoResponse.data;
-      
-      if (!userInfo || !userInfo.sub) {
-        console.error('Invalid user info received');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_user_info`);
-      }
-      
-      let user = await userService.getUserByEmail(userInfo.email);
-      
-      if (!user) {
-        await authService.createOAuthUser({
-          email: userInfo.email,
-          firstName: userInfo.given_name || '',
-          lastName: userInfo.family_name || '',
-          provider: 'linkedin',
-          providerId: userInfo.sub,
-          role: 'user'
-        });
-        user = await userService.getUserByEmail(userInfo.email);
-      }
-      
-      if (!user) {
-        console.error('Failed to create or find user');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=user_creation_failed`);
-      }
-      
-      await userService.updateLastLogin(user.id);
-      const accessToken = authService.generateToken({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role
-      });
-      const refreshToken = await tokenService.createRefreshToken(user.id);
-      
-      const frontendUrl = process.env.FRONTEND_URL;
-      if (!frontendUrl) {
-        throw new Error('Frontend URL not configured');
-      }
-      
-      // Create session
-      const session = await this.sessionService.createSession(user.id, {
-        ip: req.ip,
-        userAgent: req.headers['user-agent'] || 'unknown'
-      });
+    const code = req.query.code;
+    const state = req.query.state;
 
-      // Set secure cookies
-      res.cookie('session_id', session.session_id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-      });
-
-      res.cookie('token', accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000 // 15 minutes
-      });
-
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
-      // Redirect to frontend with returnTo
-      const returnTo = req.query.returnTo as string || '/dashboard';
-      res.redirect(`${frontendUrl}${returnTo}`);
-      
-    } catch (error) {
-      console.error('LinkedIn callback error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+    if (!code || !state) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=missing_params`);
     }
+
+    const stateSession = await this.sessionService.getOAuthStateSession(state as string);
+    if (!stateSession) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_state`);
+    }
+
+    const returnTo = stateSession.metadata?.returnTo || '/dashboard';
+
+    // Get access token
+    const tokenResponse = await axios.post<LinkedInTokenResponse>(
+      'https://www.linkedin.com/oauth/v2/accessToken',
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code as string,
+        redirect_uri: config.oauth.linkedin.callbackURL,
+        client_id: config.oauth.linkedin.clientId || '',
+        client_secret: config.oauth.linkedin.clientSecret || ''
+      }).toString()
+    );
+    
+    const { access_token } = tokenResponse.data;
+    
+    if (!access_token) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_access_token`);
+    }
+    
+    // Get user info
+    const userInfoResponse = await axios.get<LinkedInUserInfo>('https://api.linkedin.com/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${access_token}`
+      }
+    });
+
+    // Create or update user
+    const user = await authService.createOAuthUser({
+      email: userInfoResponse.data.email,
+      firstName: userInfoResponse.data.given_name,
+      lastName: userInfoResponse.data.family_name,
+      provider: 'linkedin',
+      providerId: userInfoResponse.data.sub,
+      role: 'user'
+    });
+
+    // Store OAuth avatar if available, but don't block if it fails
+    if (userInfoResponse.data.picture) {
+      try {
+        await userService.storeOAuthAvatar(user.id, userInfoResponse.data.picture);
+        safeOAuthAuditLog(
+          {
+            type: 'oauth_avatar_upload',
+            userId: user.id,
+            status: 'success',
+            userAgent: 'LinkedIn OAuth'
+          },
+          'linkedin'
+        );
+      } catch (avatarError) {
+        // Log the error but don't throw it - we don't want to block the OAuth flow
+        console.error('Failed to store LinkedIn OAuth avatar:', avatarError);
+        safeOAuthAuditLog(
+          {
+            type: 'oauth_avatar_upload',
+            userId: user.id,
+            status: 'failure',
+            error: avatarError instanceof Error ? avatarError.message : 'Unknown error',
+            userAgent: 'LinkedIn OAuth'
+          },
+          'linkedin'
+        );
+      }
+    }
+
+    // Generate access token
+    const accessToken = authService.generateToken({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role
+    });
+
+    // Create refresh token
+    const refreshToken = await this.tokenService.createRefreshToken(user.id);
+
+    // Create session
+    const session = await this.sessionService.createSession(user.id, {
+      ip: stateSession.ip_address,
+      userAgent: stateSession.device_info?.userAgent || 'unknown'
+    });
+
+    // Revoke OAuth state session
+    await this.sessionService.revokeOAuthStateSession(stateSession.session_id);
+
+    // Set all required cookies
+    res.cookie('session_id', session.session_id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    res.cookie('token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    return res.redirect(`${process.env.FRONTEND_URL}${returnTo}`);
   }
 
   /**
@@ -555,12 +581,24 @@ export class AuthController {
    */
   async handleGitHubOAuthCallback(req: Request, res: Response): Promise<void> {
     try {
-      const { code } = req.query;
+      const { code, state } = req.query;
       
-      if (!code) {
-        console.error('No authorization code provided');
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+      if (!code || !state) {
+        console.error('No authorization code or state provided');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code_or_state`);
       }
+
+      // Find and validate state session using session service
+      const stateSession = await this.sessionService.getOAuthStateSession(state as string);
+      if (!stateSession) {
+        console.error('Invalid or expired OAuth state');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_state`);
+      }
+
+      const returnTo = stateSession.metadata?.returnTo || '/dashboard';
+
+      // Revoke the state session as it's no longer needed
+      await this.sessionService.revokeOAuthStateSession(stateSession.session_id);
       
       const tokenResponse = await axios.post<GitHubTokenResponse>(
         'https://github.com/login/oauth/access_token',
@@ -624,7 +662,7 @@ export class AuthController {
         lastName: user.lastName,
         role: user.role
       });
-      const refreshToken = await tokenService.createRefreshToken(user.id);
+      const refreshToken = await this.tokenService.createRefreshToken(user.id);
       
       const frontendUrl = process.env.FRONTEND_URL;
       if (!frontendUrl) {
@@ -636,6 +674,9 @@ export class AuthController {
         ip: req.ip,
         userAgent: req.headers['user-agent'] || 'unknown'
       });
+
+      // Revoke OAuth state session after successful user session creation
+      await this.sessionService.revokeOAuthStateSession(stateSession.session_id);
 
       // Set secure cookies
       res.cookie('session_id', session.session_id, {
@@ -660,7 +701,6 @@ export class AuthController {
       });
 
       // Redirect to frontend with returnTo
-      const returnTo = req.query.returnTo as string || '/dashboard';
       res.redirect(`${frontendUrl}${returnTo}`);
       
     } catch (error) {
@@ -673,7 +713,7 @@ export class AuthController {
   /**
    * Refreshes the session
    */
-  async refreshSession(req: RequestWithSession, res: Response): Promise<void> {
+  async refreshSession(req: Request, res: Response): Promise<void> {
     try {
       const sessionId = req.cookies.session_id;
       
@@ -723,6 +763,85 @@ export class AuthController {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Initiates OAuth flow by creating a state session and redirecting to provider
+   */
+  async initiateOAuth(req: Request, res: Response, provider: 'google' | 'linkedin' | 'github'): Promise<void> {
+    try {
+      const state = crypto.randomBytes(32).toString('hex');
+      const returnTo = req.query.returnTo as string;
+
+      // Type assertion needed for OAuth state in express-session (standard OAuth flow requirement)
+      (req.session as any).state = state;
+
+      // Create OAuth state session
+      await this.sessionService.createOAuthStateSession({
+        type: 'oauth_state',
+        provider,
+        state,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        metadata: { returnTo }
+      });
+
+      // Get OAuth provider URL
+      let authUrl: string;
+      switch (provider) {
+        case 'linkedin':
+          authUrl = `https://www.linkedin.com/oauth/v2/authorization?` +
+            `response_type=code&` +
+            `client_id=${config.oauth.linkedin.clientId}&` +
+            `redirect_uri=${encodeURIComponent(config.oauth.linkedin.callbackURL)}&` +
+            `state=${state}&` +
+            `scope=openid%20profile%20email`;
+          break;
+        case 'github':
+          authUrl = `https://github.com/login/oauth/authorize?` +
+            `client_id=${config.oauth.github.clientId}&` +
+            `redirect_uri=${encodeURIComponent(config.oauth.github.callbackURL)}&` +
+            `state=${state}&` +
+            `scope=read:user%20user:email`;
+          break;
+        case 'google':
+          authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+            `response_type=code&` +
+            `client_id=${config.oauth.google.clientId}&` +
+            `redirect_uri=${encodeURIComponent(config.oauth.google.callbackURL)}&` +
+            `state=${state}&` +
+            `scope=openid%20profile%20email`;
+          break;
+      }
+
+      // Log OAuth initiation
+      safeOAuthAuditLog(
+        {
+          type: 'oauth_login',
+          userAgent: req.headers['user-agent'] || 'unknown',
+          status: 'success',
+          metadata: { returnTo }
+        },
+        provider
+      );
+
+      res.redirect(authUrl);
+    } catch (error) {
+      console.error('OAuth initiation error:', error);
+      
+      // Log OAuth initiation failure
+      safeOAuthAuditLog(
+        {
+          type: 'oauth_login',
+          userAgent: req.headers['user-agent'] || 'unknown',
+          status: 'failure',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        },
+        provider
+      );
+
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Failed to initiate OAuth')}`);
     }
   }
 }

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import config from '../config/redirect';
 import { RedirectError, ErrorCode } from '../services/error/error.service';
 import { apiLimiter } from './rateLimiter';
+import { User } from '../routes/users/user.types';
 
 /**
  * Validates redirect URLs against the configured whitelist
@@ -102,7 +103,7 @@ export const applyRoleBasedRedirect = (req: Request, _res: Response, next: NextF
 
   try {
     // Get user role from request (assuming it's set by auth middleware)
-    const userRole = req.user?.role;
+    const userRole = (req.user as User)?.role;
     const isAuthenticated = !!req.user;
 
     // Apply role-based redirect

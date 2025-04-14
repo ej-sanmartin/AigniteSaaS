@@ -8,11 +8,10 @@ import { authController } from './auth.controller';
 import { authLimiter, tokenLimiter } from '../../middleware/rateLimiter';
 import { redirectValidation } from '../../middleware/redirectValidation';
 import verifyEmailRouter from '../verify_email';
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { LinkedInProfile } from './auth.types';
 import { csrfProtection } from '../../middleware/csrf';
 import { userService } from '../users/user.service';
-import { RequestWithSession } from '../../types/express';
 import { SessionService } from '../../services/session/session.service';
 import { verifySession } from '../../middleware/auth';
 
@@ -71,18 +70,21 @@ const setupPassportStrategies = (): void => {
   ) {
     passport.use(new OpenIDConnectStrategy(
       {
-      issuer: 'https://www.linkedin.com',
-      authorizationURL: 'https://www.linkedin.com/oauth/v2/authorization',
-      tokenURL: 'https://www.linkedin.com/oauth/v2/accessToken',
-      userInfoURL: 'https://api.linkedin.com/v2/userinfo',
-      clientID: config.oauth.linkedin.clientId,
-      clientSecret: config.oauth.linkedin.clientSecret,
-      callbackURL: config.oauth.linkedin.callbackURL,
+        issuer: 'https://www.linkedin.com/oauth',
+        authorizationURL: 'https://www.linkedin.com/oauth/v2/authorization',
+        tokenURL: 'https://www.linkedin.com/oauth/v2/accessToken',
+        userInfoURL: 'https://api.linkedin.com/v2/userinfo',
+        clientID: config.oauth.linkedin.clientId,
+        clientSecret: config.oauth.linkedin.clientSecret,
+        callbackURL: config.oauth.linkedin.callbackURL,
         scope: ['openid', 'profile', 'email'],
         passReqToCallback: true,
-        proxy: true,
-        skipUserProfile: false
-      },
+        skipUserProfile: false,
+        tokenParams: {
+          grant_type: 'authorization_code'
+        },
+        state: true
+      } as any,
       async (_issuer: string, profile: OpenIDProfile, done: (error: any, user?: any) => void) => {
         try {
           if (!profile || !profile.id) {
@@ -200,16 +202,13 @@ router.get('/google',
   })
 );
 
-router.get('/google/callback',
+router.get(
+  '/google/callback',
   authLimiter,
-  passport.authenticate('google', { 
-    session: false,
-    failureRedirect: '/login',
-    failureMessage: true
-  }),
   redirectValidation,
   csrfProtection,
-  (req: RequestWithSession, res: express.Response) => 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  (req: Request, res: express.Response) =>
     authController.handleOAuthCallback(req, res, 'google')
 );
 
@@ -226,23 +225,14 @@ router.get('/linkedin',
   },
   authLimiter,
   redirectValidation,
-  passport.authenticate('openidconnect', {
-    session: false,
-    scope: ['openid', 'profile', 'email']
-  } as any)
+  (req: Request, res: Response) => authController.initiateOAuth(req, res, 'linkedin')
 );
 
 router.get('/linkedin/callback',
   authLimiter,
-  passport.authenticate('openidconnect', {
-    session: false,
-    failureRedirect: '/login',
-    failureMessage: true
-  }),
   redirectValidation,
   csrfProtection,
-  (req: RequestWithSession, res: express.Response) => 
-    authController.handleOAuthCallback(req, res, 'linkedin')
+  (req: Request, res: Response) => authController.handleLinkedInOAuthCallback(req, res)
 );
 
 router.get('/github',
@@ -264,15 +254,17 @@ router.get('/github',
   })
 );
 
-router.get('/github/callback',
+router.get(
+  '/github/callback',
   authLimiter,
   redirectValidation,
-  passport.authenticate('github', {
-    session: false,
+  csrfProtection,
+  passport.authenticate('github', { 
     failureRedirect: '/login',
     failureMessage: true
   }),
-  (req: RequestWithSession, res: express.Response) => authController.handleOAuthCallback(req, res, 'github')
+  (req: Request, res: express.Response) =>
+    authController.handleOAuthCallback(req, res, 'github')
 );
 
 router.post('/login', 

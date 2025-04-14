@@ -1,10 +1,13 @@
+-- 1. Base Tables (no foreign keys)
+-- Create users table
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   first_name VARCHAR(50),
   last_name VARCHAR(50),
-  avatar_key VARCHAR(255);
-  oauth_provider VARCHAR(20) NOT NULL DEFAULT 'local' CHECK (oauth_provider IN ('local', 'google', 'linkedin', 'github')),
+  avatar_key VARCHAR(255),
+  oauth_provider VARCHAR(20) NOT NULL DEFAULT 'local' 
+    CHECK (oauth_provider IN ('local', 'google', 'linkedin', 'github')),
   password VARCHAR(255) CHECK ((oauth_provider = 'local' AND password IS NOT NULL) OR 
                               (oauth_provider != 'local' AND password IS NULL)),
   role VARCHAR(50) NOT NULL DEFAULT 'user',
@@ -26,24 +29,6 @@ CREATE TABLE users (
   price_id VARCHAR(255)
 );
 
--- Add a unique constraint for oauth_provider + OAuth ID combination
-CREATE UNIQUE INDEX idx_users_oauth ON users(oauth_provider, oauth_id) 
-  WHERE oauth_provider != 'local' AND oauth_id IS NOT NULL;
-
--- Index for faster email lookups
-CREATE INDEX idx_users_email ON users(email);
-
--- Index for faster last login lookups
-CREATE INDEX idx_users_last_login ON users(last_login);
-
--- Add index for verification token lookups
-CREATE INDEX idx_users_verification ON users(verification_token) 
-  WHERE verification_token IS NOT NULL;
-
--- Add index for password lookups (only for local users)
-CREATE INDEX idx_users_password ON users(password) 
-  WHERE password IS NOT NULL;
-
 -- Create encryption_keys table
 CREATE TABLE encryption_keys (
     id VARCHAR(32) PRIMARY KEY,
@@ -54,6 +39,7 @@ CREATE TABLE encryption_keys (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- 2. Dependent Tables (with foreign keys)
 -- Create encrypted_data table for storing encrypted sensitive data
 CREATE TABLE encrypted_data (
     id SERIAL PRIMARY KEY,
@@ -85,7 +71,7 @@ CREATE TABLE refresh_tokens (
     salt BYTEA NOT NULL
 );
 
--- Create sessions table
+-- Create sessions table - user sessions when logged in
 CREATE TABLE sessions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -99,8 +85,22 @@ CREATE TABLE sessions (
     UNIQUE(session_id)
 );
 
--- Add index for revoked sessions
-CREATE INDEX idx_sessions_revoked ON sessions(revoked_at) WHERE revoked_at IS NOT NULL;
+-- Create oauth_sessions table - oauth sessions when signing up or logging in
+CREATE TABLE oauth_sessions (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(64) NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    device_info JSONB,
+    ip_address INET,
+    type VARCHAR(20) DEFAULT 'user_session' 
+        CHECK (type IN ('user_session', 'oauth_state')),
+    provider VARCHAR(20) NOT NULL DEFAULT 'local' 
+        CHECK (provider IN ('local', 'google', 'linkedin', 'github')),
+    state VARCHAR(255),
+    metadata JSONB
+);
 
 -- Create user_login_attempts table for account lockout
 CREATE TABLE user_login_attempts (
@@ -138,6 +138,43 @@ CREATE TABLE subscription_prices (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- 3. Indexes
+-- Add a unique constraint for oauth_provider + OAuth ID combination
+CREATE UNIQUE INDEX idx_users_oauth ON users(oauth_provider, oauth_id) 
+  WHERE oauth_provider != 'local' AND oauth_id IS NOT NULL;
+
+-- Index for faster email lookups
+CREATE INDEX idx_users_email ON users(email);
+
+-- Index for faster last login lookups
+CREATE INDEX idx_users_last_login ON users(last_login);
+
+-- Add index for verification token lookups
+CREATE INDEX idx_users_verification ON users(verification_token) 
+  WHERE verification_token IS NOT NULL;
+
+-- Add index for password lookups (only for local users)
+CREATE INDEX idx_users_password ON users(password) 
+  WHERE password IS NOT NULL;
+
+-- Add index for type and provider
+CREATE INDEX idx_oauth_sessions_type_provider ON oauth_sessions(type, provider);
+
+-- Add index for state lookups
+CREATE INDEX idx_oauth_sessions_state ON oauth_sessions(state) WHERE state IS NOT NULL;
+
+-- Add index for expired sessions cleanup
+CREATE INDEX idx_oauth_sessions_expires ON oauth_sessions(expires_at);
+
+-- Add index for revoked sessions cleanup
+CREATE INDEX idx_oauth_sessions_revoked ON oauth_sessions(revoked_at) WHERE revoked_at IS NOT NULL;
+
+-- Add index for session_id lookups (though we have UNIQUE constraint, this helps with performance)
+CREATE INDEX idx_oauth_sessions_session_id ON oauth_sessions(session_id);
+
+-- Add index for revoked sessions
+CREATE INDEX idx_sessions_revoked ON sessions(revoked_at) WHERE revoked_at IS NOT NULL;
+
 -- Create indexes for faster lookups
 CREATE INDEX idx_encryption_keys_active ON encryption_keys(is_active);
 CREATE INDEX idx_encryption_keys_expires ON encryption_keys(expires_at);
@@ -151,7 +188,7 @@ CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX idx_login_attempts_user ON user_login_attempts(user_id);
 CREATE INDEX idx_login_attempts_ip ON user_login_attempts(ip_address);
 
--- Add functions
+-- 4. Functions
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -213,7 +250,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Add triggers
+CREATE OR REPLACE FUNCTION cleanup_expired_oauth_sessions()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM oauth_sessions 
+    WHERE expires_at < NOW() 
+    OR revoked_at IS NOT NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5. Triggers
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
