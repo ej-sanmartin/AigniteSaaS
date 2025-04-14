@@ -3,9 +3,12 @@ import { authService } from './auth.service';
 import { userService } from '../users/user.service';
 import { TokenService } from '../../services/token/token';
 import { SessionService } from '../../services/session/session.service';
-import { OAuthUser, LinkedInProfile, GitHubProfile, GoogleProfile } from './auth.types';
 import crypto from 'crypto';
 import {
+  OAuthUser,
+  LinkedInProfile,
+  GitHubProfile,
+  GoogleProfile,
   LinkedInTokenResponse,
   LinkedInUserInfo,
   GitHubTokenResponse,
