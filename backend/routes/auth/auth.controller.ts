@@ -121,6 +121,14 @@ export class AuthController {
         throw new Error('No user found in request');
       }
 
+      // Clear the connect.sid cookie
+      res.clearCookie('connect.sid', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/'
+      });
+
       // Log successful OAuth completion
       auditService.logAuthEvent(
         auditService.createAuditEvent(req, {
@@ -462,6 +470,14 @@ export class AuthController {
     if (!stateSession) {
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_state`);
     }
+
+    // Clear the connect.sid cookie
+    res.clearCookie('connect.sid', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
 
     const returnTo = stateSession.metadata?.returnTo || '/dashboard';
 
