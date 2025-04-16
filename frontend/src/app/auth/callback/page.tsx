@@ -13,7 +13,15 @@ export default function AuthCallbackPage() {
           color: 'blue-600'
         }}
       />
-      <AuthCallbackHandler />
+      <AuthCallbackHandler 
+        onSuccess={() => {
+          // Redirect to dashboard with fromAuthCallback parameter
+          window.location.href = '/dashboard?fromAuthCallback=true';
+        }}
+        onError={() => {
+          window.location.href = '/login';
+        }}
+      />
     </div>
   );
 } 

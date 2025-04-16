@@ -1,61 +1,31 @@
 import { Request, Response } from 'express';
 import { verifyEmailService } from './verify_email.service';
-import { verificationTokenSchema } from './verify_email.validation';
-import { User } from 'routes/users/user.types';
 
 export class VerifyEmailController {
   /**
-   * Handles sending verification email
+   * Handles email verification
+   * @param req - Express request object
+   * @param res - Express response object
    */
-  async handleVerificationEmail(
-    req: Request,
-    res: Response
-  ): Promise<void> {
-    const user = req.user;
-    const userId = (user as User)?.id;
-    
-    if (!userId) {
-      res.status(401).json({
-        message: 'Unauthorized',
-        code: 'UNAUTHORIZED'
-      });
+  async verifyEmail(req: Request, res: Response): Promise<void> {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      res.redirect('/login?error=invalid_token');
       return;
     }
 
     try {
-      await verifyEmailService.createVerificationToken(userId);
-
-      res.json({ 
-        message: 'Verification email sent',
-        code: 'VERIFICATION_EMAIL_SENT'
-      });
-    } catch (error) {
-      console.error('Error sending verification email:', error);
-      res.status(500).json({
-        message: 'Error sending verification email',
-        code: 'VERIFICATION_EMAIL_ERROR'
-      });
-    }
-  }
-
-  /**
-   * Handles email verification with token
-   */
-  async handleVerifyToken(req: Request, res: Response): Promise<void> {
-    try {
-      const { token } = verificationTokenSchema.parse(req.params);
-      await verifyEmailService.verifyEmail(token);
-
-      res.json({
-        message: 'Email verified successfully',
-        code: 'EMAIL_VERIFIED'
-      });
+      const success = await verifyEmailService.verifyEmail(token);
+      
+      if (success) {
+        res.redirect('/login?verified=true');
+      } else {
+        res.redirect('/login?error=invalid_or_expired_token');
+      }
     } catch (error) {
       console.error('Error verifying email:', error);
-      res.status(400).json({
-        message: 'Invalid or expired verification token',
-        code: 'INVALID_VERIFICATION_TOKEN'
-      });
+      res.redirect('/login?error=verification_failed');
     }
   }
 }

@@ -1,4 +1,5 @@
-import nodemailer from 'nodemailer';
+import formData from 'form-data';
+import Mailgun from 'mailgun.js';
 import emailConfig from '../../config/email';
 
 interface SubscriptionDetails {
@@ -10,17 +11,27 @@ interface SubscriptionDetails {
 }
 
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private mailgun: any;
   private readonly fromEmail: string;
+  private readonly domain: string;
 
   constructor() {
-    if (!process.env.EMAIL_FROM) {
-      throw new Error('EMAIL_FROM environment variable is not set');
-    }
-    this.fromEmail = process.env.EMAIL_FROM;
-    this.transporter = nodemailer.createTransport(emailConfig.emailConfig);
+    const { mailgunConfig } = emailConfig;
+    this.fromEmail = mailgunConfig.fromEmail || "";
+    this.domain = mailgunConfig.domain || "";
+    
+    const mailgun = new Mailgun(formData);
+    this.mailgun = mailgun.client({
+      username: 'api',
+      key: mailgunConfig.apiKey || "",
+    });
   }
 
+  /**
+   * Sends a verification email to the user
+   * @param to - Recipient email address
+   * @param token - Raw verification token
+   */
   async sendVerificationEmail(to: string, token: string): Promise<void> {
     const baseUrl = process.env.FRONTEND_URL;
     if (!baseUrl) {
@@ -29,8 +40,8 @@ export class EmailService {
 
     const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
     
-    await this.transporter.sendMail({
-      from: this.fromEmail,
+    await this.mailgun.messages.create(this.domain, {
+      from: `${emailConfig.mailgunConfig.fromName} <${this.fromEmail}>`,
       to,
       subject: 'Verify Your Email',
       html: `
@@ -39,11 +50,17 @@ export class EmailService {
         <p>
           <a href="${verificationUrl}">Verify Email</a>
         </p>
+        <p>This link will expire in 24 hours.</p>
         <p>If you didn't request this, you can safely ignore this email.</p>
       `
     });
   }
 
+  /**
+   * Sends a password reset email to the user
+   * @param to - Recipient email address
+   * @param token - Raw reset token
+   */
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
     const baseUrl = process.env.FRONTEND_URL;
     if (!baseUrl) {
@@ -52,8 +69,8 @@ export class EmailService {
 
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
     
-    await this.transporter.sendMail({
-      from: this.fromEmail,
+    await this.mailgun.messages.create(this.domain, {
+      from: `${emailConfig.mailgunConfig.fromName} <${this.fromEmail}>`,
       to,
       subject: 'Reset Your Password',
       html: `
@@ -68,6 +85,11 @@ export class EmailService {
     });
   }
 
+  /**
+   * Sends a subscription confirmation email
+   * @param to - Recipient email address
+   * @param details - Subscription details
+   */
   async sendSubscriptionConfirmation(
     to: string, 
     details: SubscriptionDetails
@@ -75,8 +97,8 @@ export class EmailService {
     const formattedStartDate = details.startDate.toLocaleDateString();
     const formattedEndDate = details.endDate.toLocaleDateString();
 
-    await this.transporter.sendMail({
-      from: this.fromEmail,
+    await this.mailgun.messages.create(this.domain, {
+      from: `${emailConfig.mailgunConfig.fromName} <${this.fromEmail}>`,
       to,
       subject: 'Subscription Confirmation',
       html: `

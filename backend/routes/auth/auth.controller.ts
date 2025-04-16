@@ -5,7 +5,6 @@ import { TokenService } from '../../services/token/token';
 import { SessionService } from '../../services/session/session.service';
 import crypto from 'crypto';
 import {
-  OAuthUser,
   LinkedInProfile,
   GitHubProfile,
   GoogleProfile,
@@ -45,7 +44,7 @@ export class AuthController {
   async handleOAuthUser(
     profile: GoogleProfile | LinkedInProfile | GitHubProfile,
     provider: 'google' | 'linkedin' | 'github',
-    done: (error: any, user?: OAuthUser | false) => void
+    done: (error: any, user?: User | false) => void
   ): Promise<void> {
     try {
       const email = profile.emails?.[0]?.value;
@@ -104,9 +103,9 @@ export class AuthController {
         }
       } else {
         // Transform existing user to match OAuthUser type
-        const oauthUser: OAuthUser = {
+        const oauthUser: User = {
           ...user,
-          provider,
+          oauthProvider: provider,
           providerId: profile.id || (profile as LinkedInProfile).sub || '',
           isVerified: user.isVerified || false,
         };
@@ -122,7 +121,7 @@ export class AuthController {
    */
   async handleOAuthCallback(req: Request, res: Response, provider: string): Promise<void> {
     try {
-      const user = req.user as OAuthUser;
+      const user = req.user;
       if (!user) {
         throw new Error('No user found in request');
       }
@@ -231,7 +230,7 @@ export class AuthController {
       auditService.logAuthEvent(
         auditService.createAuditEvent(req, {
           type: 'oauth_complete',
-          userId: (req.user as OAuthUser)?.id,
+          userId: req.user?.id,
           userAgent: req.headers['user-agent'] || 'unknown',
           status: 'failure',
           provider,
@@ -485,7 +484,7 @@ export class AuthController {
       path: '/'
     });
 
-    const returnTo = stateSession.metadata?.returnTo || '/dashboard';
+    const returnTo = stateSession.metadata?.returnTo;
 
     // Get access token
     const tokenResponse = await axios.post<LinkedInTokenResponse>(

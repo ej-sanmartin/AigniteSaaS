@@ -1,22 +1,14 @@
 import { Router } from 'express';
 import { verifyEmailController } from './verify_email.controller';
-import {
-  verificationEmailLimiter,
-  verifyTokenLimiter
-} from '../../middleware/rateLimiter';
+import { verifyTokenLimiter } from '../../middleware/rateLimiter';
 
 const router = Router();
 
-router.post(
-  '/send-verification',
-  verificationEmailLimiter,
-  (req, res) => verifyEmailController.handleVerificationEmail(req, res)
-);
-
+// Email verification route
 router.get(
-  '/verify/:token',
+  '/verify-email',
   verifyTokenLimiter,
-  (req, res) => verifyEmailController.handleVerifyToken(req, res)
+  (req, res) => verifyEmailController.verifyEmail(req, res)
 );
 
 export default router; 

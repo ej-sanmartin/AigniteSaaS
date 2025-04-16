@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { userService } from './user.service';
-import { User, UpdateUserDTO, SafeUser } from './user.types';
+import { User, UpdateUserDTO } from './user.types';
 import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
 import { verifyEmailService } from '../verify_email/verify_email.service';
@@ -23,6 +23,7 @@ export class UserController {
   async createUser(req: Request, res: Response): Promise<void> {
     try {
       const validatedData = createUserSchema.parse(req.body);
+      const returnTo = req.query.returnTo as string || '/dashboard';
       
       // Hash password
       const salt = await bcrypt.genSalt(12);
@@ -35,15 +36,18 @@ export class UserController {
         lastName: validatedData.lastName
       });
 
-      // Try to send verification email, but don't block if it fails. That will
-      // be logged and retried later, if needed.
+      // Try to send verification email, but don't block if it fails
       try {
         await verifyEmailService.createVerificationToken(user.id);
       } catch (emailError) {
         console.error('Failed to send verification email:', emailError);
-        // Continue with user creation even if email fails
-        // We don't want to block the signup process
       }
+
+      // Create session
+      const session = await this.sessionService.createSession(user.id, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'] || 'unknown'
+      });
 
       // Generate tokens
       const accessToken = authService.generateToken({
@@ -56,53 +60,49 @@ export class UserController {
 
       const refreshToken = await this.tokenService.createRefreshToken(user.id);
 
-      // Remove password from response
-      const { password, ...userWithoutPassword } = user;
-      
-      // Set cookies
-      res.cookie('token', accessToken, {
+      // Set cookies with security config
+      const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
+        sameSite: 'lax' as const,
+        path: '/'
+      };
+
+      // Set session cookie
+      res.cookie('session_id', session.session_id, {
+        ...cookieOptions,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
       });
 
+      // Set access token cookie
+      res.cookie('token', accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000 // 15 minutes
+      });
+
+      // Set refresh token cookie
       res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
+        ...cookieOptions,
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
-      res.status(201).json({
-        message: 'User created successfully.',
-        user: userWithoutPassword as SafeUser,
-        token: accessToken,
-        refreshToken
-      });
+      // Redirect to frontend with returnTo path
+      res.redirect(`${process.env.FRONTEND_URL}${returnTo}`);
     } catch (error) {
       console.error('Error creating user:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       // Handle specific error codes
       if (errorMessage === 'EMAIL_ALREADY_EXISTS') {
-        res.status(400).json({ 
-          message: 'An account with this email already exists',
-          code: 'EMAIL_ALREADY_EXISTS'
-        });
+        res.redirect(`${process.env.FRONTEND_URL}/signup?error=${encodeURIComponent('An account with this email already exists')}`);
         return;
       }
 
       // Handle other errors
-      res.status(400).json({ 
-        message: 'Error creating user',
-        code: 'USER_CREATION_ERROR'
-      });
+      res.redirect(`${process.env.FRONTEND_URL}/signup?error=${encodeURIComponent('Error creating user')}`);
     }
   }
-
+   
   /**
    * Handles getting all users (admin only)
    */

@@ -4,10 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { toast } from 'react-hot-toast';
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
 const PASSWORD_ERROR_MESSAGE = 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character';
@@ -30,9 +27,8 @@ const signupSchema = z.object({
 type SignupForm = z.infer<typeof signupSchema>;
 
 export function SignupForm() {
-  const { signup } = useAuth();
-  const router = useRouter();
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   const {
     register,
@@ -74,30 +70,29 @@ export function SignupForm() {
 
   const onSubmit = async (data: SignupForm) => {
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          firstName: data.firstName,
-          lastName: data.lastName
-        }),
-        credentials: 'include'
+      setIsLoading(true);
+      
+      // Create a form and submit it
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`;
+      form.style.display = 'none';
+
+      // Add form data
+      Object.entries(data).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
       });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        setError(result.error || 'Failed to create account');
-        return;
-      }
-      
-      router.push('/dashboard?fromSignup=true');
-    } catch (err) {
-      setError('Failed to create account. Please try again.');
+
+      // Add form to document and submit
+      document.body.appendChild(form);
+      form.submit();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred during signup');
+      setIsLoading(false);
     }
   };
 
@@ -206,8 +201,9 @@ export function SignupForm() {
                    bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600
                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 
                    dark:focus:ring-offset-gray-900"
+          disabled={isLoading}
         >
-          Sign up
+          {isLoading ? 'Signing up...' : 'Sign up'}
         </button>
       </form>
 

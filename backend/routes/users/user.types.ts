@@ -11,13 +11,11 @@ export interface User {
   role?: UserRole;
   isVerified?: boolean;
   oauthProvider?: string;
+  providerId?: string;
   profileImageUrl?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
-
-// API response user model (without sensitive data)
-export type SafeUser = Omit<User, 'password'>;
 
 // DTOs for user operations
 export interface CreateUserDTO {

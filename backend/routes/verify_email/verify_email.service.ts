@@ -1,82 +1,77 @@
 import crypto from 'crypto';
-import { QueryConfig } from 'pg';
 import { executeQuery } from '../../db/queryExecutor';
 import { emailService } from '../../services/email/email';
-import {
-  EmailVerificationResult,
-  VerificationResult
-} from './verify_email.types';
 
 export class VerifyEmailService {
   /**
-   * Generates a random verification token
-   * @returns Hex string token
+   * Generates a secure random token and its hash
+   * @returns Object containing raw token and its hash
    */
-  generateVerificationToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+  private generateToken(): { rawToken: string; hashedToken: string } {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    return { rawToken, hashedToken };
   }
 
   /**
-   * Updates user with new verification token
-   * @param userId - User ID to update
-   * @returns User email
+   * Creates a verification token for a user
+   * @param userId - The ID of the user to create the token for
+   * @returns The raw token that should be sent to the user
    */
   async createVerificationToken(userId: number): Promise<string> {
-    const token = this.generateVerificationToken();
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const { rawToken, hashedToken } = this.generateToken();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours from now
 
-    const query: QueryConfig = {
+    const query = {
       text: `
         UPDATE users 
-        SET 
-          verification_token = $1,
-          verification_token_expires = $2
+        SET verification_token = $1,
+            verification_token_expires = $2
         WHERE id = $3
         RETURNING email
       `,
-      values: [token, expires, userId]
+      values: [hashedToken, expiresAt, userId]
     };
 
-    const result = await executeQuery<EmailVerificationResult[]>(query);
+    const result = await executeQuery<{ email: string }[]>(query);
     
     if (!result.length) {
       throw new Error('User not found');
     }
 
-    await emailService.sendVerificationEmail(result[0].email, token);
-    return result[0].email;
+    // Send verification email
+    await emailService.sendVerificationEmail(result[0].email, rawToken);
+
+    return rawToken;
   }
 
   /**
-   * Verifies email using token
-   * @param token - Verification token
-   * @returns User ID if verified
+   * Verifies a user's email using the provided token
+   * @param token - The raw token from the verification link
+   * @returns true if verification was successful, false otherwise
    */
-  async verifyEmail(token: string): Promise<number> {
-    const query: QueryConfig = {
+  async verifyEmail(token: string): Promise<boolean> {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    const query = {
       text: `
         UPDATE users 
-        SET 
-          is_verified = true,
-          verification_token = NULL,
-          verification_token_expires = NULL
-        WHERE 
-          verification_token = $1 
-          AND verification_token_expires > NOW()
-          AND is_verified = false
+        SET is_verified = true,
+            verification_token = NULL,
+            verification_token_expires = NULL
+        WHERE verification_token = $1
+          AND verification_token_expires > $2
         RETURNING id
       `,
-      values: [token]
+      values: [hashedToken, now]
     };
 
-    const result = await executeQuery<VerificationResult[]>(query);
-
-    if (!result.length) {
-      throw new Error('Invalid or expired verification token');
-    }
-
-    return result[0].id;
+    const result = await executeQuery<{ id: number }[]>(query);
+    return result.length > 0;
   }
 }
 
+// Export singleton instance
 export const verifyEmailService = new VerifyEmailService(); 

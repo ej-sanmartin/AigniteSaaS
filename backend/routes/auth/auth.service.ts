@@ -2,7 +2,6 @@ import { QueryConfig } from 'pg';
 import { Secret, SignOptions, sign as jwtSign } from 'jsonwebtoken';
 import config from '../../config/auth';
 import { executeQuery } from '../../db/queryExecutor';
-import { OAuthUser } from './auth.types';
 import bcrypt from 'bcrypt';
 import { oAuthUserSchema } from './auth.validation';
 import { User, UserRole } from '../users/user.types';
@@ -33,7 +32,7 @@ export class AuthService {
   async findUserByProviderId(
     provider: string,
     providerId: string
-  ): Promise<OAuthUser | null> {
+  ): Promise<User | null> {
     const query: QueryConfig = {
       text: `
         SELECT 
@@ -52,7 +51,7 @@ export class AuthService {
       values: [provider, providerId]
     };
     
-    const results = await executeQuery<OAuthUser[]>(query);
+    const results = await executeQuery<User[]>(query);
     return results[0] || null;
   }
 
@@ -128,14 +127,14 @@ export class AuthService {
    * Creates a new OAuth user
    */
   async createOAuthUser(
-    userData: Partial<OAuthUser> & {
+    userData: Partial<User> & {
       email: string;
       firstName: string;
       lastName: string;
       provider: string;
       providerId: string;
     }
-  ): Promise<OAuthUser> {
+  ): Promise<User> {
     try {
       const validationResult = oAuthUserSchema.safeParse({
         ...userData,
@@ -197,7 +196,7 @@ export class AuthService {
   /**
    * Gets user by email
    */
-  async getUserByEmail(email: string): Promise<OAuthUser | null> {
+  async getUserByEmail(email: string): Promise<User | null> {
     const query = {
       text: `
         SELECT 
@@ -223,14 +222,14 @@ export class AuthService {
   /**
    * Transforms database user record to OAuthUser type
    */
-  private transformUserRecord(record: UserRecord): OAuthUser {
+  private transformUserRecord(record: UserRecord): User {
     return {
       id: record.id,
       email: record.email,
       firstName: record.first_name,
       lastName: record.last_name,
       role: record.role,
-      provider: record.oauth_provider || 'local',
+      oauthProvider: record.oauth_provider || 'local',
       providerId: record.oauth_id || '',
       isVerified: record.is_verified
     };
@@ -244,7 +243,7 @@ export class AuthService {
     password: string,
     ipAddress?: string,
     deviceInfo?: Record<string, any>
-  ): Promise<OAuthUser | null> {
+  ): Promise<User | null> {
     // Get the raw user record from the database
     const query = {
       text: `
@@ -301,7 +300,7 @@ export class AuthService {
   /**
    * Creates a new user with password
    */
-  async createUser(userData: any): Promise<OAuthUser> {
+  async createUser(userData: any): Promise<User> {
     // Validate password complexity
     if (!this.validatePasswordComplexity(userData.password)) {
       throw new Error(

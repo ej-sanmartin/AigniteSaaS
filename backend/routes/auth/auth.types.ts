@@ -1,21 +1,4 @@
-import { Profile as OpenIDProfile } from 'passport-openidconnect';
-import { User } from '../users/user.types';
-
-export interface OAuthUser extends User {
-  provider: string;
-  providerId: string;
-  isVerified: boolean;
-}
-
-export interface OAuthProfile {
-  id: string;
-  displayName: string;
-  firstName?: string;
-  lastName?: string;
-  emails?: { value: string }[];
-}
-
-export interface LinkedInProfile extends OpenIDProfile {
+export interface LinkedInProfile {
   sub: string;
   email: string;
   given_name: string;

@@ -1,7 +1,8 @@
+import express from 'express';
 import { User } from '../../routes/users/user.types';
 
 declare global {
-  namespace Express {
+  declare namespace Express {
     interface Request {
       // Set by authentication middleware
       user?: User;
@@ -20,5 +21,3 @@ declare global {
     }
   }
 }
-
-export {}; // Makes this a module to avoid global pollution errors 

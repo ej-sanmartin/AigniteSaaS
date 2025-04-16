@@ -1,65 +1,67 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { userController } from './user.controller';
 import { verifySession } from '../../middleware/auth';
 import { upload } from '../../middleware/upload';
+import { authLimiter } from '../../middleware/rateLimiter';
 
 const router = Router();
 
 // Public route for user registration
 router.post(
   '/register',
-  (req, res) => userController.createUser(req, res)
+  authLimiter,
+  (req: Request, res: Response) => userController.createUser(req, res)
 );
 
 // Protected routes
 router.get(
   '/',
   verifySession,
-  (req, res) => userController.getAllUsers(req, res)
+  (req: Request, res: Response) => userController.getAllUsers(req, res)
 );
 
 router.get(
   '/dashboard-stats',
   verifySession,
-  (req, res) => userController.getDashboardStats(req, res)
+  (req: Request, res: Response) => userController.getDashboardStats(req, res)
 );
 
 router.get(
   '/profile',
   verifySession,
-  (req, res) => userController.getUserProfile(req, res)
+  (req: Request, res: Response) => userController.getUserProfile(req, res)
 );
 
 router.get(
   '/:id',
   verifySession,
-  (req, res) => userController.getUserById(req, res)
+  (req: Request, res: Response) => userController.getUserById(req, res)
 );
 
 router.put(
   '/:id',
   verifySession,
-  (req, res) => userController.updateUser(req, res)
+  (req: Request, res: Response) => userController.updateUser(req, res)
 );
 
 router.delete(
   '/:id',
   verifySession,
-  (req, res) => userController.deleteUser(req, res)
+  (req: Request, res: Response) => userController.deleteUser(req, res)
 );
 
 // Avatar routes
 router.get(
   '/avatar',
   verifySession,
-  (req, res) => userController.getAvatar(req, res)
+  (req: Request, res: Response) => userController.getAvatar(req, res)
 );
 
 router.post(
   '/avatar',
   verifySession,
   upload.single('avatar'),
-  (req, res) => userController.uploadAvatar(req, res)
+  (req: Request, res: Response) => userController.uploadAvatar(req, res)
 );
 
 export default router;

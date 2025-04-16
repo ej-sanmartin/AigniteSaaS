@@ -8,12 +8,12 @@ import { User } from '../routes/users/user.types';
  * Validates redirect URLs against the configured whitelist
  * and applies role-based redirects when needed.
  */
-export const validateRedirect = (req: Request, _res: Response, next: NextFunction): void => {
+export const validateRedirect = async (req: Request, _res: Response, next: NextFunction) : Promise<void> => {
   const returnTo = req.query.returnTo as string;
   
   // If no redirect specified, continue
   if (!returnTo) {
-    return next();
+    next();
   }
 
   try {
@@ -33,7 +33,7 @@ export const validateRedirect = (req: Request, _res: Response, next: NextFunctio
       }
 
       // If we get here, the path is valid
-      return next();
+      next();
     }
 
     // Handle full URLs (legacy support)

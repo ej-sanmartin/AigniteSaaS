@@ -22,7 +22,7 @@
     "experimentalDecorators": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
-    "typeRoots": ["./node_modules/@types", "./types"]
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
   "exclude": ["node_modules"],
   "include": ["./**/*.ts"]
