@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const loginSchema = z.object({
@@ -21,7 +20,6 @@ interface LoginFormProps {
 
 export function LoginForm({ returnTo = '/dashboard' }: LoginFormProps) {
   const { login } = useAuth();
-  const router = useRouter();
   const [error, setError] = useState('');
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
@@ -30,7 +28,8 @@ export function LoginForm({ returnTo = '/dashboard' }: LoginFormProps) {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      await login(data.email, data.password, returnTo);
+      setError(null);
+      await login(data.email, data.password);
     } catch (err) {
       setError('Invalid email or password');
     }

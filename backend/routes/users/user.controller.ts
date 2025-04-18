@@ -86,20 +86,38 @@ export class UserController {
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
-      // Redirect to frontend with returnTo path
-      res.redirect(`${process.env.FRONTEND_URL}${returnTo}`);
+      // Return success response with redirect URL
+      res.status(200).json({
+        message: 'Account created successfully',
+        redirectTo: returnTo
+      });
     } catch (error) {
       console.error('Error creating user:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      // Handle specific error codes
-      if (errorMessage === 'EMAIL_ALREADY_EXISTS') {
-        res.redirect(`${process.env.FRONTEND_URL}/signup?error=${encodeURIComponent('An account with this email already exists')}`);
-        return;
+      // Handle specific error cases
+      if (error instanceof Error) {
+        if (error.message === 'EMAIL_ALREADY_EXISTS') {
+          res.status(409).json({
+            message: 'Account creation failed',
+            code: 'ACCOUNT_CREATION_ERROR'
+          });
+          return;
+        }
+        
+        if (error.name === 'ZodError') {
+          res.status(400).json({
+            message: 'Invalid input data',
+            code: 'VALIDATION_ERROR'
+          });
+          return;
+        }
       }
 
       // Handle other errors
-      res.redirect(`${process.env.FRONTEND_URL}/signup?error=${encodeURIComponent('Error creating user')}`);
+      res.status(500).json({
+        message: 'Account creation failed',
+        code: 'SERVER_ERROR'
+      });
     }
   }
    

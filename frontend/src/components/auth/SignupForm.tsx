@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
 const PASSWORD_ERROR_MESSAGE = 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character';
@@ -27,6 +28,7 @@ const signupSchema = z.object({
 type SignupForm = z.infer<typeof signupSchema>;
 
 export function SignupForm() {
+  const { signup } = useAuth();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -71,25 +73,8 @@ export function SignupForm() {
   const onSubmit = async (data: SignupForm) => {
     try {
       setIsLoading(true);
-      
-      // Create a form and submit it
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/register`;
-      form.style.display = 'none';
-
-      // Add form data
-      Object.entries(data).forEach(([key, value]) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-      });
-
-      // Add form to document and submit
-      document.body.appendChild(form);
-      form.submit();
+      setError(null);
+      await signup(data.email, data.password, data.firstName, data.lastName);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred during signup');
       setIsLoading(false);

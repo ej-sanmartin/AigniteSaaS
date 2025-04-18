@@ -45,20 +45,41 @@ export const useAuthState = (): AuthContextType => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string, returnTo: string = '/dashboard'): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
-      await api.post('/auth/login', { email, password });
+      
+      // Use frontend API route instead of direct backend call
+      const response = await fetch(`/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include', // Important for cookies
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Verify the session is valid
       const isValid = await checkAuth();
       if (isValid) {
         setIsAuthenticated(true);
         scheduleTokenRefresh();
-        router.push('/dashboard');
+        // Redirect to the provided URL
+        window.location.href = data.redirectTo;
+        return;
       }
+
+      throw new Error('Session validation failed');
     } catch (err) {
       setError({ 
-        message: 'Login failed', 
+        message: err instanceof Error ? err.message : 'Login failed', 
         code: 'LOGIN_ERROR' 
       });
       throw err;
@@ -71,16 +92,36 @@ export const useAuthState = (): AuthContextType => {
     try {
       setIsLoading(true);
       setError(null);
-      await api.post('/auth/register', { email, password, firstName, lastName });
+      
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, firstName, lastName }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Signup failed');
+      }
+
+      // Verify the session is valid
       const isValid = await checkAuth();
       if (isValid) {
         setIsAuthenticated(true);
         scheduleTokenRefresh();
-        router.push('/dashboard');
+        // Redirect to the provided URL
+        window.location.href = data.redirectTo;
+        return;
       }
+
+      throw new Error('Session validation failed');
     } catch (err) {
       setError({ 
-        message: 'Signup failed', 
+        message: err instanceof Error ? err.message : 'Signup failed', 
         code: 'SIGNUP_ERROR' 
       });
       throw err;
