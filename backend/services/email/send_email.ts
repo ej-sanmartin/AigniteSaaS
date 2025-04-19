@@ -10,7 +10,7 @@ interface SubscriptionDetails {
   currency: string;
 }
 
-export class EmailService {
+export class SendEmailService {
   private mailgun: any;
   private readonly fromEmail: string;
   private readonly domain: string;
@@ -38,8 +38,17 @@ export class EmailService {
       throw new Error('FRONTEND_URL environment variable is not set');
     }
 
+    // DEBUG: Log email sending details
+    console.log('DEBUG - Email Sending:');
+    console.log('Recipient:', to);
+    console.log('Token being sent:', token);
+    console.log('Base URL:', baseUrl);
+
     const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
     
+    // DEBUG: Log final URL
+    console.log('DEBUG - Verification URL:', verificationUrl);
+
     await this.mailgun.messages.create(this.domain, {
       from: `${emailConfig.mailgunConfig.fromName} <${this.fromEmail}>`,
       to,
@@ -120,4 +129,4 @@ export class EmailService {
 }
 
 // Export singleton instance
-export const emailService = new EmailService(); 
+export const sendEmailService = new SendEmailService(); 

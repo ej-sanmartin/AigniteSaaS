@@ -2,32 +2,39 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
 import { toast } from 'react-hot-toast';
 import { LoadingState } from '@/components/ui/LoadingState';
 
 export function EmailVerification() {
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
   const router = useRouter();
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
   const [message, setMessage] = useState('Checking verification status...');
 
   useEffect(() => {
+    const token = searchParams.get('token');
     if (token) {
       verifyEmail(token);
     }
-  }, [token]);
+  }, [searchParams]);
 
   const verifyEmail = async (verificationToken: string) => {
     try {
-      await api.post('/auth/verify-email', { token: verificationToken });
-      setStatus('success');
-      setMessage('Email verified successfully! Redirecting to dashboard...');
-      toast.success('Email verified successfully!');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000);
+      const response = await api.get(`/email/verify?token=${verificationToken}`);
+      
+      if (response.data.code === 'VERIFICATION_SUCCESS') {
+        setStatus('success');
+        setMessage('Email verified successfully! Redirecting to dashboard...');
+        toast.success('Email verified successfully!');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
+      } else {
+        setStatus('error');
+        setMessage('Invalid or expired verification link. Please request a new one.');
+        toast.error('Failed to verify email. Please try again.');
+      }
     } catch (error) {
       setStatus('error');
       setMessage('Invalid or expired verification link. Please request a new one.');
@@ -37,9 +44,9 @@ export function EmailVerification() {
 
   const resendVerification = async () => {
     try {
-      await api.post('/auth/resend-verification');
-      setMessage('Verification email sent! Please check your inbox.');
-      toast.success('Verification email sent!');
+      await api.post('/email/resend-verification');
+      setMessage('If you have an account, a verification email has been sent to your email address.');
+      toast.success('If you have an account, a verification email has been sent to your email address.');
     } catch (error) {
       setMessage('Failed to send verification email. Please try again.');
       toast.error('Failed to send verification email. Please try again.');
@@ -48,7 +55,7 @@ export function EmailVerification() {
 
   return (
     <>
-      {!token && (
+      {!searchParams.get('token') && (
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-400">
             We've sent a verification link to your email address.
@@ -66,7 +73,7 @@ export function EmailVerification() {
         </div>
       )}
 
-      {token && (
+      {searchParams.get('token') && (
         <div className="space-y-4">
           <div className={`
             rounded-full h-16 w-16 flex items-center justify-center mx-auto

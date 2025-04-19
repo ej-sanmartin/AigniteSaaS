@@ -8,7 +8,7 @@ import { apiLimiter } from './middleware/rateLimiter';
 import { securityHeaders, corsMiddleware } from './middleware/security';
 import { OAuthSessionStore } from './services/session/oauth_session.store';
 import authRoutes from './routes/auth/index';
-import verifyEmailRoutes from './routes/verify_email/index';
+import emailRoutes from './routes/email/index';
 import userRoutes from './routes/users/index';
 import subscriptionRoutes from './routes/subscriptions/index';
 import stripeWebhookRoutes from './routes/webhooks/stripe/index';
@@ -63,7 +63,7 @@ app.use(session({
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/verify-email', verifyEmailRoutes);
+app.use('/api/email', emailRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/webhooks/stripe', stripeWebhookRoutes);

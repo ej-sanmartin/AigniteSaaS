@@ -3,7 +3,7 @@ import { userService } from './user.service';
 import { User, UpdateUserDTO } from './user.types';
 import { updateUserSchema, createUserSchema } from './user.validation';
 import bcrypt from 'bcrypt';
-import { verifyEmailService } from '../verify_email/verify_email.service';
+import { emailService } from '../email/email.service';
 import { authService } from '../auth/auth.service';
 import { TokenService } from '../../services/token/token';
 import { SessionService } from '../../services/session/session.service';
@@ -38,7 +38,7 @@ export class UserController {
 
       // Try to send verification email, but don't block if it fails
       try {
-        await verifyEmailService.createVerificationToken(user.id);
+        await emailService.createVerificationToken(user.id);
       } catch (emailError) {
         console.error('Failed to send verification email:', emailError);
       }

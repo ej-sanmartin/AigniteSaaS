@@ -2,7 +2,7 @@ import config from '../../config/auth';
 import { authController } from './auth.controller';
 import { authLimiter, tokenLimiter } from '../../middleware/rateLimiter';
 import { redirectValidation } from '../../middleware/redirectValidation';
-import verifyEmailRouter from '../verify_email';
+import emailRouter from '../email';
 import { Router, Request, Response, NextFunction } from 'express';
 import { csrfProtection } from '../../middleware/csrf';
 import { verifySession } from '../../middleware/auth';
@@ -102,6 +102,6 @@ router.post('/refresh',
   (req: Request, res: Response) => authController.refreshToken(req, res)
 );
 
-router.use('/verify', verifyEmailRouter);
+router.use('/verify', emailRouter);
 
 export default router;
