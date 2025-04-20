@@ -38,17 +38,8 @@ export class SendEmailService {
       throw new Error('FRONTEND_URL environment variable is not set');
     }
 
-    // DEBUG: Log email sending details
-    console.log('DEBUG - Email Sending:');
-    console.log('Recipient:', to);
-    console.log('Token being sent:', token);
-    console.log('Base URL:', baseUrl);
-
     const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
     
-    // DEBUG: Log final URL
-    console.log('DEBUG - Verification URL:', verificationUrl);
-
     await this.mailgun.messages.create(this.domain, {
       from: `${emailConfig.mailgunConfig.fromName} <${this.fromEmail}>`,
       to,

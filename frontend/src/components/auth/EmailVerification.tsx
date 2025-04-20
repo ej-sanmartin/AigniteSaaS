@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/utils/api';
 import { toast } from 'react-hot-toast';
@@ -11,13 +11,17 @@ export function EmailVerification() {
   const router = useRouter();
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
   const [message, setMessage] = useState('Checking verification status...');
+  const verificationAttempted = useRef(false);
 
   useEffect(() => {
     const token = searchParams.get('token');
-    if (token) {
+    if (!token) return;
+
+    if (!verificationAttempted.current) {
+      verificationAttempted.current = true;
       verifyEmail(token);
     }
-  }, [searchParams]);
+  }, []);
 
   const verifyEmail = async (verificationToken: string) => {
     try {
@@ -25,11 +29,8 @@ export function EmailVerification() {
       
       if (response.data.code === 'VERIFICATION_SUCCESS') {
         setStatus('success');
-        setMessage('Email verified successfully! Redirecting to dashboard...');
+        setMessage('Email verified successfully! You can now log in to your account.');
         toast.success('Email verified successfully!');
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 2000);
       } else {
         setStatus('error');
         setMessage('Invalid or expired verification link. Please request a new one.');
@@ -103,6 +104,15 @@ export function EmailVerification() {
             )}
           </div>
           <p className="text-gray-600 dark:text-gray-400">{message}</p>
+          
+          {status === 'success' && (
+            <button
+              onClick={() => router.push('/login')}
+              className="mt-4 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Proceed to Login
+            </button>
+          )}
         </div>
       )}
 

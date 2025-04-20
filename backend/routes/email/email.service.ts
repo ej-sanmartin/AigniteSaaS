@@ -23,12 +23,6 @@ export class EmailService {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours from now
 
-    // DEBUG: Log token generation
-    console.log('DEBUG - Token Generation:');
-    console.log('Raw Token:', rawToken);
-    console.log('Hashed Token:', hashedToken);
-    console.log('User ID:', userId);
-
     const query = {
       text: `
         UPDATE users 
@@ -46,10 +40,6 @@ export class EmailService {
       throw new Error('User not found');
     }
 
-    // DEBUG: Log before sending email
-    console.log('DEBUG - Sending verification email to:', result[0].email);
-
-    // Send verification email
     await sendEmailService.sendVerificationEmail(result[0].email, rawToken);
 
     return rawToken;
@@ -61,32 +51,10 @@ export class EmailService {
    * @returns true if verification was successful, false otherwise
    */
   async verifyEmail(token: string): Promise<boolean> {
-    // DEBUG: Log verification attempt
-    console.log('DEBUG - Verification Attempt:');
-    console.log('Received Token:', token);
-
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const now = new Date();
 
-    // DEBUG: Log hashed token
-    console.log('Hashed Received Token:', hashedToken);
-
     const query = {
-      text: `
-        SELECT verification_token, verification_token_expires 
-        FROM users 
-        WHERE verification_token = $1
-      `,
-      values: [hashedToken]
-    };
-
-    // DEBUG: Log database query
-    const storedTokenResult = await executeQuery<{ verification_token: string, verification_token_expires: Date }[]>(query);
-    console.log('DEBUG - Database Query Result:');
-    console.log('Stored Token:', storedTokenResult[0]?.verification_token);
-    console.log('Token Expires:', storedTokenResult[0]?.verification_token_expires);
-
-    const verificationQuery = {
       text: `
         UPDATE users 
         SET is_verified = true,
@@ -99,7 +67,7 @@ export class EmailService {
       values: [hashedToken, now]
     };
 
-    const result = await executeQuery<{ id: number }[]>(verificationQuery);
+    const result = await executeQuery<{ id: number }[]>(query);
     return result.length > 0;
   }
 }
