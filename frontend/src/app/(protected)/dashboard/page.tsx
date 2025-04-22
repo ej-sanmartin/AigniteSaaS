@@ -61,7 +61,6 @@ export default function DashboardPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader user={null} />
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-          {!fromAuthCallback && <LoadingState message="Please wait while we process your login." />}
           <AuthCallbackHandler 
             onSuccess={() => setIsAuthInitialized(true)}
             onError={() => setError('Authentication failed. Please try again.')}
